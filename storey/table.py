@@ -832,7 +832,7 @@ class AggregationValue:
 
     def __init__(self, max_value=None, set_data=None):
         self.value = self.default_value
-        self.time = datetime.min
+        self.time = None
         self._max_value = max_value
         self._set_value = self._set_value_with_max if max_value else self._set_value_without_max
 
@@ -864,20 +864,20 @@ class AggregationValue:
         if value > self._max_value:
             self.value = self._max_value
         else:
-            self.value = value
+            self.value = float(value)
 
     def _set_value_without_max(self, value):
-        self.value = value
+        self.value = float(value)
 
     def get_update_expression(self, old):
         return f'{old}+{self.value}'
 
     def reset(self, value=None):
-        self.time = datetime.min
+        self.time = None
         if value is None:
             self.value = self.default_value
         else:
-            self.value = value
+            self.value = float(value)
 
 
 class MinValue(AggregationValue):
@@ -889,17 +889,16 @@ class MinValue(AggregationValue):
 
     def aggregate(self, time, value):
         if value < self.value:
-            self.value = value  # bypass _set_value because there's no need to check max_value each time
+            self.value = float(value)  # bypass _set_value because there's no need to check max_value each time
 
     def get_update_expression(self, old):
         return f'min({old}, {self.value})'
 
     def reset(self, value=None):
-        self.time = datetime.min
         if value is None:
             self.value = self._max_value or self.default_value
         else:
-            self.value = value
+            self.value = float(value)
 
 
 class MaxValue(AggregationValue):
@@ -919,7 +918,7 @@ class MaxValue(AggregationValue):
 
 class SumValue(AggregationValue):
     name = 'sum'
-    default_value = 0
+    default_value = 0.0
 
     def __init__(self, max_value=None, set_data=None):
         super().__init__(max_value, set_data)
@@ -930,7 +929,7 @@ class SumValue(AggregationValue):
 
 class CountValue(AggregationValue):
     aggregation = 'count'
-    default_value = 0
+    default_value = 0.0
 
     def __init__(self, max_value=None, set_data=None):
         super().__init__(max_value, set_data)
@@ -941,7 +940,7 @@ class CountValue(AggregationValue):
 
 class SqrValue(AggregationValue):
     name = 'sqr'
-    default_value = 0
+    default_value = 0.0
 
     def __init__(self, max_value=None, set_data=None):
         super().__init__(max_value, set_data)
@@ -955,12 +954,12 @@ class LastValue(AggregationValue):
 
     def __init__(self, max_value=None, set_data=None):
         super().__init__(max_value, set_data)
-        self._last_time = -math.inf
+        self._time = -math.inf
 
     def aggregate(self, time, value):
-        if time > self._last_time:
+        if self.time is None or time > self.time:
             self._set_value(value)
-            self._last_time = time
+            self.time = time
 
     def get_update_expression(self, old):
         return f'{self.value}'
@@ -971,18 +970,18 @@ class FirstValue(AggregationValue):
 
     def __init__(self, max_value=None, set_data=None):
         super().__init__(max_value, set_data)
-        self._first_time = math.inf
+        self.time = math.inf
 
     def aggregate(self, time, value):
-        if time < self._first_time:
+        if self.time is None or time < self.time:
             self._set_value(value)
-            self._first_time = time
+            self.time = time
 
     def get_update_expression(self, old):
-        return f'if_else(({old} == {self.default_value}), {self.value}, {old})'
+        return f'if_else(isnan({old}), {self.value}, {old})'
 
     def reset(self, value=None):
-        self._first_time = math.inf
+        self.time = math.inf
         if value is None:
             self.value = self.default_value
         else:
