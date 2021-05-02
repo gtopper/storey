@@ -403,7 +403,12 @@ class _IterableSource(Flow):
                 await closeable.close()
 
     def _loop_thread_main(self):
+        import cProfile
+        pr = cProfile.Profile()
+        pr.enable()
         asyncio.run(self._async_loop_thread_main())
+        pr.disable()
+        pr.print_stats()
         self._termination_q.put(self._ex)
 
     def _raise_on_error(self, ex):
