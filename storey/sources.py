@@ -177,6 +177,11 @@ class Source(Flow):
         loop = asyncio.get_running_loop()
         self._termination_future = asyncio.get_running_loop().create_future()
 
+        import cProfile
+        pr = cProfile.Profile()
+        pr.enable()
+
+        count = 0
         while True:
             event = await loop.run_in_executor(None, self._q.get)
             try:
@@ -195,6 +200,9 @@ class Source(Flow):
                 break
             if event is _termination_obj:
                 break
+            count += 1
+            if count % 5000 == 0:
+                pr.print_stats()
 
         for closeable in self._closeables:
             await closeable.close()
