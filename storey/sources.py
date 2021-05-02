@@ -201,6 +201,7 @@ class Source(Flow):
             if event is _termination_obj:
                 break
             count += 1
+            print(f'count={count}')
             if count % 5000 == 0:
                 pr.print_stats()
 
