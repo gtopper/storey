@@ -184,6 +184,10 @@ class Source(Flow):
         count = 0
         while True:
             event = await loop.run_in_executor(None, self._q.get)
+            count += 1
+            print(f'count={count}')
+            if count % 5000 == 0:
+                pr.print_stats()
             try:
                 termination_result = await self._do_downstream(event)
                 if event is _termination_obj:
@@ -200,10 +204,6 @@ class Source(Flow):
                 break
             if event is _termination_obj:
                 break
-            count += 1
-            print(f'count={count}')
-            if count % 5000 == 0:
-                pr.print_stats()
 
         for closeable in self._closeables:
             await closeable.close()
