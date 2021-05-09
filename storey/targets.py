@@ -88,6 +88,8 @@ class _Writer:
                     self._non_partition_columns.append(col)
 
     def _path_from_event(self, event):
+        print(f'type(event.time)={type(event.time)} event.time={event.time}')
+
         res = '/'
         for col in self._partition_cols:
             hash_into = 0
