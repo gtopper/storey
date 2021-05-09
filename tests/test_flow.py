@@ -2527,3 +2527,17 @@ def test_custom_string_time_input():
     result = awaitable_result.await_result()
     controller.terminate()
     assert result.time == datetime(2021, 5, 9, 14, 5, 27, tzinfo=pytz.utc)
+
+
+def test_ugh():
+    data = {"time": "2016-05-25T13:30:00", "ticker": "GOOG1", "bid": 850.50, "ask": 525}
+
+    controller = build_flow([
+        SyncEmitSource(time_field='time'),
+        Complete(full_event=True)
+    ]).run()
+
+    awaitable_result = controller.emit(data)
+    result = awaitable_result.await_result()
+    controller.terminate()
+    assert result.time == datetime(2016, 5, 25, 13, 30)

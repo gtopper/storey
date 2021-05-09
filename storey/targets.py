@@ -88,7 +88,7 @@ class _Writer:
                     self._non_partition_columns.append(col)
 
     def _path_from_event(self, event):
-        print(f'type(event.time)={type(event.time)} event.time={event.time}')
+        raise Exception(f'type(event.time)={type(event.time)} event.time={event.time}')
 
         res = '/'
         for col in self._partition_cols:
