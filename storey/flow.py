@@ -705,6 +705,9 @@ class _Batching(Flow):
         self._max_events = max_events
         self._flush_after_seconds = flush_after_seconds
 
+        print(f'!!! max_events={max_events}')
+        print(f'!!! flush_after_seconds={flush_after_seconds}')
+
         if self._flush_after_seconds is not None and self._flush_after_seconds < 0:
             raise ValueError('flush_after_seconds cannot be negative')
 
@@ -748,6 +751,7 @@ class _Batching(Flow):
             self._batch_first_event_time[key] = event.time
             self._batch_start_time[key] = time.monotonic()
 
+        print(f'!!! event.time={event.time}')
         if self._flush_after_seconds is not None and self._timeout_task is None:
             self._timeout_task = asyncio.get_running_loop().create_task(self._sleep_and_emit())
 
