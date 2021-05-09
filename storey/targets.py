@@ -334,6 +334,13 @@ class ParquetTarget(_Batching, _Writer):
                  partition_cols: Union[str, List[Union[str, Tuple[(str, int)]]], None] = None,
                  infer_columns_from_data: Optional[bool] = None, max_events: Optional[int] = None,
                  flush_after_seconds: Optional[int] = None, **kwargs):
+
+        print(f'??? path={path}')
+        print(f'??? partition_cols={partition_cols}')
+        print(f'??? self._single_file_mode={self._single_file_mode}')
+        print(f'??? max_events={max_events}')
+        print(f'??? flush_after_seconds={flush_after_seconds}')
+
         self._single_file_mode = False
         if isinstance(partition_cols, str):
             partition_cols = [partition_cols]
@@ -349,6 +356,12 @@ class ParquetTarget(_Batching, _Writer):
             max_events = 10000
         if flush_after_seconds is None and not self._single_file_mode:
             flush_after_seconds = 60
+
+        print(f'!!! path={path}')
+        print(f'!!! partition_cols={partition_cols}')
+        print(f'!!! self._single_file_mode={self._single_file_mode}')
+        print(f'!!! max_events={max_events}')
+        print(f'!!! flush_after_seconds={flush_after_seconds}')
 
         kwargs['path'] = path
         if not self._single_file_mode and path.endswith('/'):
