@@ -337,7 +337,6 @@ class ParquetTarget(_Batching, _Writer):
 
         print(f'??? path={path}')
         print(f'??? partition_cols={partition_cols}')
-        print(f'??? self._single_file_mode={self._single_file_mode}')
         print(f'??? max_events={max_events}')
         print(f'??? flush_after_seconds={flush_after_seconds}')
 
