@@ -4,6 +4,7 @@ import csv
 import math
 import queue
 import threading
+import traceback
 import uuid
 import warnings
 from datetime import datetime
@@ -144,6 +145,7 @@ class FlowController(FlowControllerBase):
 
     def terminate(self):
         """Terminates the associated flow."""
+        traceback.print_stack()
         self._emit_fn(_termination_obj)
 
     def await_termination(self):
