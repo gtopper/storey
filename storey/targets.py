@@ -5,6 +5,7 @@ import datetime
 import hashlib
 import json
 import os
+import pickle
 import queue
 import random
 import traceback
@@ -629,16 +630,12 @@ class StreamTarget(Flow, _Writer):
             response = await request.task
             if response.output.failed_record_count == 0:
                 return
-            request_body = str(request.request_body)
-            body_length = len(request_body)
-            body_too_large = body_length > 4096
-            if body_too_large:
-                path = f'/tmp/big-response-{uuid.uuid4()}'
-                with open(path, 'w') as outfile:
-                    print(request_body, file=outfile)
+            path = f'/tmp/big-response-{uuid.uuid4()}'
+            with open(path, 'w') as outfile:
+                pickle.dump(request.request_body, outfile)
             raise V3ioError(f'Failed to put records to V3IO. Got {response.status_code} response: {response.body} for request to'
-                            f' container {request.container}, path {request.stream_path}, body length of {body_length}, and body ' +
-                            f'saved to {path}' if body_too_large else request_body)
+                            f' container {request.container}, path {request.stream_path}, body length of {body_length}, and body '
+                            f'saved to {path}')
 
     def _build_request_put_records(self, shard_id, records):
         record_list_for_json = []
@@ -662,7 +659,7 @@ class StreamTarget(Flow, _Writer):
         request_body = self._build_request_put_records(shard_id, buffer)
         request = self._storage._put_records(self._container, self._stream_path, request_body)
         in_flight_reqs[shard_id] = StreamTarget.Request(
-            asyncio.get_running_loop().create_task(request), self._container, self._stream_path, request_body
+            asyncio.get_running_loop().create_task(request), self._container, self._stream_path, buffer
         )
 
     async def _worker(self):
