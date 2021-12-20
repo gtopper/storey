@@ -629,15 +629,16 @@ class StreamTarget(Flow, _Writer):
             response = await request.task
             if response.output.failed_record_count == 0:
                 return
-            body_length = len(request.request_body)
+            request_body = json.dumps(request.request_body)
+            body_length = len(request_body)
             body_too_large = body_length > 4096
             if body_too_large:
                 path = f'/tmp/big-response-{uuid.uuid4()}'
                 with open(path, 'w') as outfile:
-                    print(request.request_body, file=outfile)
+                    print(request_body, file=outfile)
             raise V3ioError(f'Failed to put records to V3IO. Got {response.status_code} response: {response.body} for request to'
                             f' container {request.container}, path {request.stream_path}, body length of {body_length}, and body ' +
-                            f'saved to {path}' if body_too_large else request.request_body)
+                            f'saved to {path}' if body_too_large else request_body)
 
     def _build_request_put_records(self, shard_id, records):
         record_list_for_json = []
