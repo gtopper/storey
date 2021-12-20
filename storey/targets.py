@@ -7,6 +7,7 @@ import json
 import os
 import queue
 import random
+import traceback
 import uuid
 from typing import Optional, Union, List, Callable, Tuple
 from urllib.parse import urlparse
@@ -680,6 +681,7 @@ class StreamTarget(Flow, _Writer):
                         await self._handle_response(req)
                     self._send_batch(buffers, in_flight_reqs, shard_id)
         except BaseException as ex:
+            traceback.print_exc()
             if not self._q.empty():
                 await self._q.get()
             raise ex
