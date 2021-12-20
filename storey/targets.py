@@ -631,7 +631,7 @@ class StreamTarget(Flow, _Writer):
             if response.output.failed_record_count == 0:
                 return
             path = f'/tmp/big-response-{uuid.uuid4()}'
-            with open(path, 'w') as outfile:
+            with open(path, 'wb') as outfile:
                 pickle.dump(request.request_body, outfile)
             raise V3ioError(f'Failed to put records to V3IO. Got {response.status_code} response: {response.body} for request to'
                             f' container {request.container}, path {request.stream_path}, body length of {body_length}, and body '
