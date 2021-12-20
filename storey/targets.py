@@ -634,125 +634,119 @@ class StreamTarget(Flow, _Writer):
             if body_too_large:
                 path = f'/tmp/big-response-{uuid.uuid4()}'
                 with open(path, 'w') as outfile:
-                    print(response, file=outfile)
-        raise V3ioError(f'Failed to put records to V3IO. Got {response.status_code} response: {response.body} for request to'
-                        f' container {request.container}, path {request.stream_path}, body length of {body_length}, and body ' +
-                        f'saved to {path}' if body_too_large else request.request_body)
+                    print(request.request_body, file=outfile)
+            raise V3ioError(f'Failed to put records to V3IO. Got {response.status_code} response: {response.body} for request to'
+                            f' container {request.container}, path {request.stream_path}, body length of {body_length}, and body ' +
+                            f'saved to {path}' if body_too_large else request.request_body)
 
+    def _build_request_put_records(self, shard_id, records):
+        record_list_for_json = []
+        for record in records:
+            if isinstance(record, dict):
+                record = json.dumps(record).encode("utf-8")
+            record_list_for_json.append({'shard_id': shard_id, 'data': record})
 
-def _build_request_put_records(self, shard_id, records):
-    record_list_for_json = []
-    for record in records:
-        if isinstance(record, dict):
-            record = json.dumps(record).encode("utf-8")
-        record_list_for_json.append({'shard_id': shard_id, 'data': record})
+        return record_list_for_json
 
-    return record_list_for_json
+    class Request:
+        def __init__(self, task, container, stream_path, request_body):
+            self.task = task
+            self.container = container
+            self.stream_path = stream_path
+            self.request_body = request_body
 
+    def _send_batch(self, buffers, in_flight_reqs, shard_id):
+        buffer = buffers[shard_id]
+        buffers[shard_id] = []
+        request_body = self._build_request_put_records(shard_id, buffer)
+        request = self._storage._put_records(self._container, self._stream_path, request_body)
+        in_flight_reqs[shard_id] = StreamTarget.Request(
+            asyncio.get_running_loop().create_task(request), self._container, self._stream_path, request_body
+        )
 
-class Request:
-    def __init__(self, task, container, stream_path, request_body):
-        self.task = task
-        self.container = container
-        self.stream_path = stream_path
-        self.request_body = request_body
-
-
-def _send_batch(self, buffers, in_flight_reqs, shard_id):
-    buffer = buffers[shard_id]
-    buffers[shard_id] = []
-    request_body = self._build_request_put_records(shard_id, buffer)
-    request = self._storage._put_records(self._container, self._stream_path, request_body)
-    in_flight_reqs[shard_id] = StreamTarget.Request(
-        asyncio.get_running_loop().create_task(request), self._container, self._stream_path, request_body
-    )
-
-
-async def _worker(self):
-    try:
-        buffers = []
-        in_flight_reqs = []
-        for _ in range(self._shard_count):
-            buffers.append([])
-            in_flight_reqs.append(None)
-        while True:
-            try:
-                for shard_id in range(self._shard_count):
-                    if self._q.empty():
-                        req = in_flight_reqs[shard_id]
-                        in_flight_reqs[shard_id] = None
-                        await self._handle_response(req)
-                        if len(buffers[shard_id]) >= self._batch_size:
-                            self._send_batch(buffers, in_flight_reqs, shard_id)
-                event = await self._q.get()
-                if event is _termination_obj:  # handle outstanding batches and in flight requests on termination
-                    for req in in_flight_reqs:
-                        await self._handle_response(req)
+    async def _worker(self):
+        try:
+            buffers = []
+            in_flight_reqs = []
+            for _ in range(self._shard_count):
+                buffers.append([])
+                in_flight_reqs.append(None)
+            while True:
+                try:
                     for shard_id in range(self._shard_count):
-                        if buffers[shard_id]:
-                            self._send_batch(buffers, in_flight_reqs, shard_id)
-                    for req in in_flight_reqs:
-                        await self._handle_response(req)
-                    break
-                shard_id = self._sharding_func(event) % self._shard_count
-                record = self._event_to_writer_entry(event)
-                buffers[shard_id].append(record)
-                if len(buffers[shard_id]) >= self._batch_size:
-                    if in_flight_reqs[shard_id]:
-                        req = in_flight_reqs[shard_id]
-                        in_flight_reqs[shard_id] = None
-                        await self._handle_response(req)
-                    self._send_batch(buffers, in_flight_reqs, shard_id)
-            except BaseException as ex:
-                traceback.print_exc()
-                ex._raised_by_storey_step = self
-                if self.context and hasattr(self.context, 'push_error'):
-                    message = traceback.format_exc()
-                    if self.logger:
-                        self.logger.error(f'Pushing error to error stream: {ex}\n{message}')
-                    self.context.push_error(event, f"{ex}\n{message}", source=self.name)
-                else:
-                    raise ex
-    finally:
-        print('!!! StreamTarget: Worker terminating!!!')
-        self._worker_exited = True
-        if not self._q.empty():
-            await self._q.get()
-        await self._storage.close()
+                        if self._q.empty():
+                            req = in_flight_reqs[shard_id]
+                            in_flight_reqs[shard_id] = None
+                            await self._handle_response(req)
+                            if len(buffers[shard_id]) >= self._batch_size:
+                                self._send_batch(buffers, in_flight_reqs, shard_id)
+                    event = await self._q.get()
+                    if event is _termination_obj:  # handle outstanding batches and in flight requests on termination
+                        for req in in_flight_reqs:
+                            await self._handle_response(req)
+                        for shard_id in range(self._shard_count):
+                            if buffers[shard_id]:
+                                self._send_batch(buffers, in_flight_reqs, shard_id)
+                        for req in in_flight_reqs:
+                            await self._handle_response(req)
+                        break
+                    shard_id = self._sharding_func(event) % self._shard_count
+                    record = self._event_to_writer_entry(event)
+                    buffers[shard_id].append(record)
+                    if len(buffers[shard_id]) >= self._batch_size:
+                        if in_flight_reqs[shard_id]:
+                            req = in_flight_reqs[shard_id]
+                            in_flight_reqs[shard_id] = None
+                            await self._handle_response(req)
+                        self._send_batch(buffers, in_flight_reqs, shard_id)
+                except BaseException as ex:
+                    traceback.print_exc()
+                    ex._raised_by_storey_step = self
+                    if self.context and hasattr(self.context, 'push_error'):
+                        message = traceback.format_exc()
+                        if self.logger:
+                            self.logger.error(f'Pushing error to error stream: {ex}\n{message}')
+                        self.context.push_error(event, f"{ex}\n{message}", source=self.name)
+                    else:
+                        raise ex
+        finally:
+            print('!!! StreamTarget: Worker terminating!!!')
+            self._worker_exited = True
+            if not self._q.empty():
+                await self._q.get()
+            await self._storage.close()
 
+    async def _lazy_init(self):
+        if not self._shard_count:
+            response = await self._storage._describe(self._container, self._stream_path)
 
-async def _lazy_init(self):
-    if not self._shard_count:
-        response = await self._storage._describe(self._container, self._stream_path)
+            self._shard_count = response.shard_count
+            if self._sharding_func is None:
+                def f(_):
+                    return random.randint(0, self._shard_count - 1)
 
-        self._shard_count = response.shard_count
-        if self._sharding_func is None:
-            def f(_):
-                return random.randint(0, self._shard_count - 1)
+                self._sharding_func = f
 
-            self._sharding_func = f
+            self._q = asyncio.queues.Queue(self._batch_size * self._shard_count)
+            self._worker_awaitable = asyncio.get_running_loop().create_task(self._worker())
 
-        self._q = asyncio.queues.Queue(self._batch_size * self._shard_count)
-        self._worker_awaitable = asyncio.get_running_loop().create_task(self._worker())
+    async def _do(self, event):
+        await self._lazy_init()
 
-
-async def _do(self, event):
-    await self._lazy_init()
-
-    if self._worker_exited:
-        await self._worker_awaitable
-        raise AssertionError("StreamTarget worker has already terminated")
-
-    if event is _termination_obj:
-        await self._q.put(_termination_obj)
-        await self._worker_awaitable
-        return await self._do_downstream(_termination_obj)
-    else:
-        print(f'!!! StreamTarget: putting event into queue of size {self._q.qsize()}')
-        await self._q.put(event)
-        print(f'!!! StreamTarget: queue size is now {self._q.qsize()}')
         if self._worker_exited:
             await self._worker_awaitable
+            raise AssertionError("StreamTarget worker has already terminated")
+
+        if event is _termination_obj:
+            await self._q.put(_termination_obj)
+            await self._worker_awaitable
+            return await self._do_downstream(_termination_obj)
+        else:
+            print(f'!!! StreamTarget: putting event into queue of size {self._q.qsize()}')
+            await self._q.put(event)
+            print(f'!!! StreamTarget: queue size is now {self._q.qsize()}')
+            if self._worker_exited:
+                await self._worker_awaitable
 
 
 class NoSqlTarget(_Writer, Flow):
