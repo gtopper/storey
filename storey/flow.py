@@ -166,7 +166,10 @@ class Flow:
             result += f'time={event.time}, '
         if getattr(event, 'path', None):
             result += f'path={event.path}, '
-        result += f'body={event.body})'
+        len_body = len(str(event.body))
+        result += f'len(str(body))={len_body})'
+        if len_body <= 1024:
+            result += f', body={event.body}'
         return result
 
     async def _do_downstream(self, event):
