@@ -684,6 +684,7 @@ class StreamTarget(Flow, _Writer):
                 await self._q.get()
             raise ex
         finally:
+            print('!!! StreamTarget: Worker terminated!!!')
             await self._storage.close()
 
     async def _lazy_init(self):
@@ -712,7 +713,9 @@ class StreamTarget(Flow, _Writer):
             await self._worker_awaitable
             return await self._do_downstream(_termination_obj)
         else:
+            print(f'!!! StreamTarget: putting event into queue of size {self._q.qsize()}')
             await self._q.put(event)
+            print(f'!!! StreamTarget: queue size is now {self._q.qsize()}')
             if self._worker_awaitable.done():
                 await self._worker_awaitable
 

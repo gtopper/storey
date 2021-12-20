@@ -188,14 +188,14 @@ class Flow:
                 event_copy._awaitable_result = awaitable_result
                 tasks.append(asyncio.get_running_loop().create_task(self._outlets[i]._do_and_recover(event_copy)))
             event._awaitable_result = awaitable_result
-        if self.verbose and self.logger:
+        if self.logger:
             step_name = type(self).__name__
             event_string = self._event_string(event)
             self.logger.debug(f'{step_name} -> {type(self._outlets[0]).__name__} | {event_string}')
         await self._outlets[0]._do_and_recover(event)  # Optimization - avoids creating a task for the first outlet.
         for i, task in enumerate(tasks, start=1):
-            if self.verbose and self.logger:
-                self.logger.debug(f'{step_name} -> {type(self._outlets[i]).__name__} | {event_string}')
+            if self.logger:
+                self.logger.info(f'{step_name} -> {type(self._outlets[i]).__name__} | {event_string}')
             await task
 
     def _get_event_or_body(self, event):
