@@ -629,7 +629,7 @@ class StreamTarget(Flow, _Writer):
             response = await request.task
             if response.output.failed_record_count == 0:
                 return
-            request_body = json.dumps(request.request_body)
+            request_body = str(request.request_body)
             body_length = len(request_body)
             body_too_large = body_length > 4096
             if body_too_large:
