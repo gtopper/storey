@@ -630,12 +630,11 @@ class StreamTarget(Flow, _Writer):
             response = await request.task
             if response.output.failed_record_count == 0:
                 return
-            path = f'/tmp/big-response-{uuid.uuid4()}'
+            path = f'/tmp/big-response-{uuid.uuid4()}.pickle'
             with open(path, 'wb') as outfile:
                 pickle.dump(request.request_body, outfile)
             raise V3ioError(f'Failed to put records to V3IO. Got {response.status_code} response: {response.body} for request to'
-                            f' container {request.container}, path {request.stream_path}, body length of {body_length}, and body '
-                            f'saved to {path}')
+                            f' container {request.container}, path {request.stream_path}, and body saved to {path}')
 
     def _build_request_put_records(self, shard_id, records):
         record_list_for_json = []
