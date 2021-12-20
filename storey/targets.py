@@ -626,10 +626,11 @@ class StreamTarget(Flow, _Writer):
     @staticmethod
     async def _handle_response(request):
         if request:
-            response = await request
+            response = await request.task
             if response.output.failed_record_count == 0:
                 return
-            raise V3ioError(f'Failed to put records to V3IO. Got {response.status_code} response: {response.body}')
+            raise V3ioError(f'Failed to put records to V3IO. Got {response.status_code} response: {response.body} for request to'
+                            f' container {request.container}, path {request.stream_path}, and body {request.request_body}')
 
     def _build_request_put_records(self, shard_id, records):
         record_list_for_json = []
@@ -640,12 +641,21 @@ class StreamTarget(Flow, _Writer):
 
         return record_list_for_json
 
+    class Request:
+        def __init__(self, task, container, stream_path, request_body):
+            self.task = task
+            self.container = container
+            self.stream_path = stream_path
+            self.request_body = request_body
+
     def _send_batch(self, buffers, in_flight_reqs, shard_id):
         buffer = buffers[shard_id]
         buffers[shard_id] = []
         request_body = self._build_request_put_records(shard_id, buffer)
         request = self._storage._put_records(self._container, self._stream_path, request_body)
-        in_flight_reqs[shard_id] = asyncio.get_running_loop().create_task(request)
+        in_flight_reqs[shard_id] = StreamTarget.Request(
+            asyncio.get_running_loop().create_task(request), self._container, self._stream_path, request_body
+        )
 
     async def _worker(self):
         try:
