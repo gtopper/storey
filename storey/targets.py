@@ -658,7 +658,7 @@ class StreamTarget(Flow, _Writer):
         request_body = self._build_request_put_records(shard_id, buffer)
         request = self._storage._put_records(self._container, self._stream_path, request_body)
         in_flight_reqs[shard_id] = StreamTarget.Request(
-            asyncio.get_running_loop().create_task(request), self._container, self._stream_path, buffer
+            asyncio.get_running_loop().create_task(request), self._container, self._stream_path, request_body
         )
 
     async def _worker(self):
