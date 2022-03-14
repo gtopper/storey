@@ -601,8 +601,8 @@ class StreamTarget(Flow, _Writer):
     :type storage_options: dict
     """
 
-    def __init__(self, storage: Driver, stream_path: str, sharding_func: Optional[Callable[[Event], int]] = None, batch_size: int = 8,
-                 columns: Optional[List[str]] = None, infer_columns_from_data: Optional[bool] = None,
+    def __init__(self, storage: Driver, stream_path: str, sharding_func: Union[Callable[[Event], int], str, None] = None,
+                 batch_size: int = 8, columns: Optional[List[str]] = None, infer_columns_from_data: Optional[bool] = None,
                  shard_count: int = 1, retention_period_hours: int = 24, **kwargs):
         kwargs['stream_path'] = stream_path
         kwargs['batch_size'] = batch_size
@@ -614,6 +614,9 @@ class StreamTarget(Flow, _Writer):
         _Writer.__init__(self, columns, infer_columns_from_data, retain_dict=True)
 
         self._storage = storage
+
+        if isinstance(sharding_func, str):
+            sharding_func = lambda x: x.get(sharding_func)
 
         if sharding_func is not None and not callable(sharding_func):
             raise TypeError(f'Expected a callable, got {type(sharding_func)}')
