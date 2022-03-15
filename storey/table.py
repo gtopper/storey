@@ -325,7 +325,11 @@ class Table:
         received_job_count = 0
         self_sent_jobs = {}
         try:
+            count = 0
             while True:
+                if count % 100 == 0:
+                    print(f'persist count = {count}')
+                count += 1
                 jobs = self_sent_jobs.pop(received_job_count, None)
                 if jobs:
                     task = jobs[0]
