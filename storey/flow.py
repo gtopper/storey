@@ -17,7 +17,6 @@ import copy
 import datetime
 import inspect
 import time
-import traceback
 from asyncio import Task
 from collections import defaultdict
 from typing import Optional, Union, Callable, List, Dict, Any, Set, Iterable
@@ -229,20 +228,23 @@ class Flow:
         result += f'body={event.body})'
         return result
 
+    def _should_terminate(self):
+        return self._termination_received == len(self._inlets)
+
     async def _do_downstream(self, event):
         if not self._outlets:
             return
         if event is _termination_obj:
             # Only propagate the termination object once we received one per inlet
-            if self._termination_received == len(self._inlets):
-                self._outlets[0]._termination_received += 1
+            self._outlets[0]._termination_received += 1
+            if self._outlets[0]._should_terminate():
                 self._termination_result = await self._outlets[0]._do(_termination_obj)
-                for outlet in self._outlets[1:] + self._get_recovery_steps():
-                    outlet._termination_received += 1
+            for outlet in self._outlets[1:] + self._get_recovery_steps():
+                outlet._termination_received += 1
+                if outlet._should_terminate():
                     self._termination_result = self._termination_result_fn(self._termination_result,
                                                                            await outlet._do(_termination_obj))
-                return self._termination_result
-            return
+            return self._termination_result
         # If there is more than one outlet, allow concurrent execution.
         tasks = []
         if len(self._outlets) > 1:
@@ -327,7 +329,7 @@ class Choice(Flow):
             self.to(outlet)
 
         if default:
-            self._outlets.append(default)
+            self.to(default)
         self._default = default
 
     async def _do(self, event):
@@ -777,7 +779,6 @@ class _ConcurrentJobExecution(Flow):
                                 if none_or_coroutine:
                                     await none_or_coroutine
                             if self.context and hasattr(self.context, 'push_error'):
-                                message = traceback.format_exc()
                                 if self.logger:
                                     self.logger.error(f'Pushing error to error stream: {ex}\n{message}')
                                 self.context.push_error(event, f"{ex}\n{message}", source=self.name)
