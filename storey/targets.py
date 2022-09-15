@@ -813,6 +813,7 @@ class KafkaTarget(Flow, _Writer):
 
     def _init(self):
         _Writer._init(self)
+        Flow._init(self)
 
     async def _lazy_init(self):
         from kafka import KafkaProducer
@@ -877,6 +878,7 @@ class NoSqlTarget(_Writer, Flow):
 
     def _init(self):
         _Writer._init(self)
+        Flow._init(self)
 
     async def _handle_completed(self, event, response):
         await self._do_downstream(event)

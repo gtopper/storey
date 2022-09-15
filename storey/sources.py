@@ -18,6 +18,7 @@ import csv
 import math
 import queue
 import threading
+import traceback
 import uuid
 import warnings
 from datetime import datetime
@@ -225,6 +226,7 @@ class SyncEmitSource(Flow):
         self._closeables = []
 
     def _init(self):
+        super()._init()
         self._is_terminated = False
 
     async def _run_loop(self):
@@ -238,6 +240,7 @@ class SyncEmitSource(Flow):
                 if event is _termination_obj:
                     self._termination_future.set_result(termination_result)
             except BaseException as ex:
+                traceback.print_exc()
                 if event is not _termination_obj and event._awaitable_result:
                     event._awaitable_result._set_error(ex)
                 self._ex = ex
@@ -415,6 +418,7 @@ class AsyncEmitSource(Flow):
         self._closeables = []
 
     def _init(self):
+        super()._init()
         self._is_terminated = False
 
     async def _run_loop(self):
@@ -475,9 +479,6 @@ class _IterableSource(Flow):
         self._termination_q = queue.Queue(1)
         self._ex = None
         self._closeables = []
-
-    def _init(self):
-        pass
 
     async def _run_loop(self):
         raise NotImplementedError()
@@ -593,6 +594,7 @@ class CSVSource(_IterableSource, WithUUID):
             raise ValueError('time_field can only be set to an integer when with_header is false')
 
     def _init(self):
+        super()._init()
         self._event_buffer = queue.Queue(1024)
         self._types = []
         self._none_columns = set()
@@ -882,6 +884,7 @@ class ParquetSource(DataframeSource):
                                    storage_options=self._storage_options)
 
     def _init(self):
+        super()._init()
         self._dfs = []
         for path in self._paths:
             if self._start_filter or self._end_filter:
