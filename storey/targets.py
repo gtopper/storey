@@ -686,6 +686,7 @@ class StreamTarget(Flow, _Writer):
         buffer = buffers[shard_id]
         buffers[shard_id] = []
         request_body = self._build_request_put_records(shard_id, buffer)
+        print(f'GALGAL PutRecords request_body={request_body}')
         request = self._storage._put_records(self._container, self._stream_path, request_body)
         in_flight_reqs[shard_id] = asyncio.get_running_loop().create_task(request)
 
