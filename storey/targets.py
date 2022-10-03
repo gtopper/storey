@@ -669,6 +669,8 @@ class StreamTarget(Flow, _Writer):
     async def _handle_response(request):
         if request:
             response = await request
+            print(f'GALGAL PutRecords response={response} response.failed_record_count={response.failed_record_count}, '
+                  f'response.records={response.records}')
             if response.output.failed_record_count == 0:
                 return
             raise V3ioError(f'Failed to put records to V3IO. Got {response.status_code} response: {response.body}')
