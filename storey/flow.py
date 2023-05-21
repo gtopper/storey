@@ -52,6 +52,7 @@ class Flow:
                 recovery_step._inlets.append(self)
 
         self._termination_result_fn = termination_result_fn
+        print(f"!!! Creating step {self} with context={context}")
         self.context = context
         self.verbose = context and getattr(context, "verbose", False)
         self.logger = getattr(self.context, "logger", None) if self.context else None
