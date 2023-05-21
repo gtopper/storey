@@ -292,6 +292,7 @@ class SyncEmitSource(Flow):
         if hasattr(self.context, "platform") and hasattr(self.context.platform, "explicit_ack"):
             committer = self.context.platform.explicit_ack
         while True:
+            print("!!! while True")
             event = None
             if (
                 num_events_handled_without_commit > 0
@@ -305,6 +306,7 @@ class SyncEmitSource(Flow):
                     if self._q.qsize() > 0:
                         event = self._q.get_nowait()
                         if event:
+                            print("!!! break")
                             break
                     await asyncio.sleep(1)
                     can_block = await _commit_handled_events(self._outstanding_offsets, committer)
