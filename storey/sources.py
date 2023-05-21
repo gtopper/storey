@@ -294,6 +294,9 @@ class SyncEmitSource(Flow):
         while True:
             print("!!! while True")
             event = None
+            print(f"!!! num_events_handled_without_commit={num_events_handled_without_commit}")
+            print(f"!!! self._q.empty()={self._q.empty()}")
+            print(f"!!! self._max_events_before_commit={self._max_events_before_commit}")
             if (
                 num_events_handled_without_commit > 0
                 and self._q.empty()
@@ -312,6 +315,10 @@ class SyncEmitSource(Flow):
                     can_block = await _commit_handled_events(self._outstanding_offsets, committer)
             if not event:
                 event = await loop.run_in_executor(None, self._q.get)
+            print(f"committer={committer}")
+            print(f"hasattr(event, \"path\")={hasattr(event, 'path')}")
+            print(f"hasattr(event, \"shard_id\")={hasattr(event, 'shard_id')}")
+            print(f"hasattr(event, \"offset\")={hasattr(event, 'offset')}")
             if committer and hasattr(event, "path") and hasattr(event, "shard_id") and hasattr(event, "offset"):
                 qualified_shard = (event.path, event.shard_id)
                 offsets = self._outstanding_offsets[qualified_shard]
