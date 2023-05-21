@@ -500,6 +500,13 @@ class AsyncFlowController(FlowControllerBase):
 
 
 async def _commit_handled_events(outstanding_offsets_by_qualified_shard, committer, commit_all=False):
+    print(
+        f"!!! _commit_handled_events("
+        f"outstanding_offsets_by_qualified_shard={outstanding_offsets_by_qualified_shard}, "
+        f"committer={committer}, "
+        f"commit_all={commit_all}"
+        f")"
+    )
     all_offsets_handled = True
     for qualified_shard, offsets in outstanding_offsets_by_qualified_shard.items():
         if commit_all and offsets:
@@ -515,11 +522,10 @@ async def _commit_handled_events(outstanding_offsets_by_qualified_shard, committ
                     break
                 last_handled_offset = offset.offset
                 num_to_clear += 1
+        print(f"!!! last_handled_offset={last_handled_offset}, num_to_clear={num_to_clear}")
         if last_handled_offset:
             path, shard_id = qualified_shard
-            print(
-                f"!!! Committing offset: path={path}, shard_id={shard_id}, last_handled_offset={last_handled_offset}"
-            )
+            print(f"!!! Committing offset: path={path}, shard_id={shard_id}, last_handled_offset={last_handled_offset}")
             await committer(path, shard_id, last_handled_offset)
             outstanding_offsets_by_qualified_shard[qualified_shard] = offsets[num_to_clear:]
     return all_offsets_handled
