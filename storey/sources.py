@@ -535,7 +535,7 @@ async def _commit_handled_events(outstanding_offsets_by_qualified_shard, committ
                     for referrer in gc.get_referrers(event):
                         print(
                             f"!!!     referrer (id={id(referrer)}) is of type {type(referrer)} from module "
-                            f"{referrer.__module__}, with methods {dir(referrer)}"
+                            f"{type(referrer).__module__}, with methods {dir(referrer)}"
                         )
                     print(f"{gc.get_referrers()}")
                     all_offsets_handled = False
