@@ -529,10 +529,11 @@ async def _commit_handled_events(outstanding_offsets_by_qualified_shard, committ
             # go over offsets in the qualified shard by arrival order until we reach an unhandled offset
             for offset in offsets:
                 if not offset.is_ready_to_commit():
+                    event = offset.event_weakref()
                     print(f"!!! offset {offset} was not ready to commit")
-                    print(f"!!! event at offset={offset} has referrers:")
-                    for referrer in gc.get_referrers(offset.event_weakref()):
-                        print(f"!!!     {referrer}")
+                    print(f"!!! event (id={id(event)}) at offset={offset} has referrers:")
+                    for referrer in gc.get_referrers(event):
+                        print(f"!!!     referrer (id={id(referrer)}) is of type {type(referrer)}")
                     print(f"{gc.get_referrers()}")
                     all_offsets_handled = False
                     break
