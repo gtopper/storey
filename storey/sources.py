@@ -516,6 +516,7 @@ async def _commit_handled_events(outstanding_offsets_by_qualified_shard, committ
         f"commit_all={commit_all}"
         f")"
     )
+    gc.collect()
     all_offsets_handled = True
     for qualified_shard, offsets in outstanding_offsets_by_qualified_shard.items():
         if commit_all and offsets:
@@ -527,6 +528,7 @@ async def _commit_handled_events(outstanding_offsets_by_qualified_shard, committ
             # go over offsets in the qualified shard by arrival order until we reach an unhandled offset
             for offset in offsets:
                 if not offset.is_ready_to_commit():
+                    print(f"!!! offset {offset} was not ready to commit")
                     all_offsets_handled = False
                     break
                 last_handled_offset = offset.offset
