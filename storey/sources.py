@@ -15,6 +15,7 @@
 import asyncio
 import copy
 import csv
+import gc
 import math
 import queue
 import threading
