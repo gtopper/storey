@@ -997,7 +997,7 @@ class KafkaTarget(Flow, _Writer):
 
     def __init__(
         self,
-        bootstrap_servers: str,
+        bootstrap_servers: Union[str, List[str]],
         topic: str,
         producer_options: Optional[dict] = None,
         sharding_func: Union[None, int, str, Callable[[Event], Any]] = None,
