@@ -514,8 +514,8 @@ def _print_referrers(obj, level=1):
         return
     referrers = gc.get_referrers(obj)
     for referrer in referrers:
-        if type(referrer).__name__ == "frame":
-            continue
+        # if type(referrer).__name__ == "frame":
+        #     continue
         print(
             f"{'>'*level}referrer (id={id(referrer)}) is of type {type(referrer)} from module "
             f"{type(referrer).__module__} – referrer={referrer}"
@@ -543,8 +543,10 @@ async def _commit_handled_events(outstanding_offsets_by_qualified_shard, committ
             # go over offsets in the qualified shard by arrival order until we reach an unhandled offset
             for offset in offsets:
                 if not offset.is_ready_to_commit():
+                    import sys
+                    refcount = sys.getrefcount(offset.event_weakref()) - 1
+                    print(f"!!! offset {offset} was not ready to commit because refcount was {refcount}")
                     event = offset.event_weakref()
-                    print(f"!!! offset {offset} was not ready to commit")
                     print(f"!!! event (id={id(event)}) at offset={offset} has referrers:")
                     _print_referrers(event)
                     all_offsets_handled = False
