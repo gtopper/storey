@@ -512,10 +512,13 @@ class AsyncFlowController(FlowControllerBase):
 def _print_referrers(obj, level=1):
     if level > 5:
         return
-    for referrer in gc.get_referrers(obj):
+    referrers = gc.get_referrers(obj)
+    for referrer in referrers:
+        if type(referrer).__name__ == "frame":
+            continue
         print(
             f"{'>'*level}referrer (id={id(referrer)}) is of type {type(referrer)} from module "
-            f"{type(referrer).__module__}, with methods {dir(referrer)}"
+            f"{type(referrer).__module__}"
         )
         _print_referrers(referrer, level + 1)
 
@@ -528,7 +531,6 @@ async def _commit_handled_events(outstanding_offsets_by_qualified_shard, committ
         f"commit_all={commit_all}"
         f")"
     )
-    gc.collect()
     all_offsets_handled = True
     for qualified_shard, offsets in outstanding_offsets_by_qualified_shard.items():
         if commit_all and offsets:
@@ -537,6 +539,7 @@ async def _commit_handled_events(outstanding_offsets_by_qualified_shard, committ
         else:
             num_to_clear = 0
             last_handled_offset = None
+            gc.collect()
             # go over offsets in the qualified shard by arrival order until we reach an unhandled offset
             for offset in offsets:
                 if not offset.is_ready_to_commit():
@@ -544,7 +547,6 @@ async def _commit_handled_events(outstanding_offsets_by_qualified_shard, committ
                     print(f"!!! offset {offset} was not ready to commit")
                     print(f"!!! event (id={id(event)}) at offset={offset} has referrers:")
                     _print_referrers(event)
-                    print(f"{gc.get_referrers()}")
                     all_offsets_handled = False
                     break
                 last_handled_offset = offset.offset
