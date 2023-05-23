@@ -518,7 +518,7 @@ def _print_referrers(obj, level=1):
             continue
         print(
             f"{'>'*level}referrer (id={id(referrer)}) is of type {type(referrer)} from module "
-            f"{type(referrer).__module__}"
+            f"{type(referrer).__module__} – referrer={referrer}"
         )
         _print_referrers(referrer, level + 1)
 
