@@ -509,6 +509,17 @@ class AsyncFlowController(FlowControllerBase):
         return await self._loop_task
 
 
+def _print_referrers(obj, level=1):
+    if level > 5:
+        return
+    for referrer in gc.get_referrers(obj):
+        print(
+            f"!!!  {'  '*level}referrer (id={id(referrer)}) is of type {type(referrer)} from module "
+            f"{type(referrer).__module__}, with methods {dir(referrer)}"
+        )
+        _print_referrers(referrer, level + 1)
+
+
 async def _commit_handled_events(outstanding_offsets_by_qualified_shard, committer, commit_all=False):
     print(
         f"!!! _commit_handled_events("
@@ -532,11 +543,7 @@ async def _commit_handled_events(outstanding_offsets_by_qualified_shard, committ
                     event = offset.event_weakref()
                     print(f"!!! offset {offset} was not ready to commit")
                     print(f"!!! event (id={id(event)}) at offset={offset} has referrers:")
-                    for referrer in gc.get_referrers(event):
-                        print(
-                            f"!!!     referrer (id={id(referrer)}) is of type {type(referrer)} from module "
-                            f"{type(referrer).__module__}, with methods {dir(referrer)}"
-                        )
+                    _print_referrers(event)
                     print(f"{gc.get_referrers()}")
                     all_offsets_handled = False
                     break
