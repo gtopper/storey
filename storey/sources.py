@@ -548,19 +548,12 @@ async def _commit_handled_events(outstanding_offsets_by_qualified_shard, committ
             # go over offsets in the qualified shard by arrival order until we reach an unhandled offset
             for offset in offsets:
                 if not offset.is_ready_to_commit():
-                    import sys
-
-                    refcount = sys.getrefcount(offset.event_weakref()) - 1
-                    print(f"!!! offset {offset} was not ready to commit because refcount was {refcount}")
-                    event = offset.event_weakref()
-                    print(f"!!! event (id={id(event)}) at offset={offset} has referrers:")
-                    _print_referrers(event)
                     all_offsets_handled = False
                     break
                 last_handled_offset = offset.offset
                 num_to_clear += 1
         print(f"!!! last_handled_offset={last_handled_offset}, num_to_clear={num_to_clear}")
-        if last_handled_offset:
+        if last_handled_offset is not None:
             path, shard_id = qualified_shard
             print(f"!!! Committing offset: path={path}, shard_id={shard_id}, last_handled_offset={last_handled_offset}")
             await committer(path, shard_id, last_handled_offset)
