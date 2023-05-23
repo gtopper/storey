@@ -514,7 +514,7 @@ def _print_referrers(obj, level=1):
         return
     for referrer in gc.get_referrers(obj):
         print(
-            f"!!!  {'  '*level}referrer (id={id(referrer)}) is of type {type(referrer)} from module "
+            f"{'>'*level}referrer (id={id(referrer)}) is of type {type(referrer)} from module "
             f"{type(referrer).__module__}, with methods {dir(referrer)}"
         )
         _print_referrers(referrer, level + 1)
