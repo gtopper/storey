@@ -1045,7 +1045,7 @@ class KafkaTarget(Flow, _Writer):
         Flow._init(self)
         _Writer._init(self)
         # Keep pending event to prevent them from being committed at the source
-        self._pending_events = []
+        self._pending_events = 0
 
     async def _lazy_init(self):
         from kafka import KafkaProducer
@@ -1060,11 +1060,11 @@ class KafkaTarget(Flow, _Writer):
 
         if event is _termination_obj:
             self._producer.flush()
-            self._pending_events = []
+            self._pending_events = 0
             self._producer.close()
             return await self._do_downstream(_termination_obj)
         else:
-            self._pending_events.append(event)
+            self._pending_events += 1
             key = None
             if event.key is not None:
                 key = stringify_key(event.key).encode("UTF-8")
@@ -1079,11 +1079,13 @@ class KafkaTarget(Flow, _Writer):
                     partition = sharding_func_result
                 else:
                     key = sharding_func_result
-            self._pending_events.append(event)
-            self._producer.send(self._topic, record, key, partition=partition)
-            if len(self._pending_events) >= self._max_pending_events:
+            self._pending_events += 1
+            future = self._producer.send(self._topic, record, key, partition=partition)
+            # Prevent garbage collection of event until persisted to kafka
+            future.add_callback(lambda x: event)
+            if self._pending_events >= self._max_pending_events:
                 self._producer.flush()
-                self._pending_events = []
+                self._pending_events = 0
 
 
 class NoSqlTarget(_Writer, Flow):
