@@ -30,6 +30,7 @@ from typing import Callable, Coroutine, Iterable, List, Optional, Union
 import pandas
 import pyarrow
 import pytz
+from nuclio_sdk import QualifiedOffset
 
 from .dtypes import Event, _termination_obj
 from .flow import Complete, Flow
@@ -556,7 +557,7 @@ async def _commit_handled_events(outstanding_offsets_by_qualified_shard, committ
         if last_handled_offset is not None:
             path, shard_id = qualified_shard
             print(f"!!! Committing offset: path={path}, shard_id={shard_id}, last_handled_offset={last_handled_offset}")
-            await committer(path, shard_id, last_handled_offset)
+            await committer(QualifiedOffset(path, shard_id, last_handled_offset))
             outstanding_offsets_by_qualified_shard[qualified_shard] = offsets[num_to_clear:]
     return all_offsets_handled
 
