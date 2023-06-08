@@ -927,8 +927,6 @@ class StreamTarget(Flow, _Writer):
                         self.context.push_error(event, f"{ex}\n{message}", source=self.name)
                     else:
                         raise ex
-            del buffer_events
-            del in_flight_events
         finally:
             self._worker_exited = True
             await self._storage.close()
