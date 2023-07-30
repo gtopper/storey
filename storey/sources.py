@@ -314,7 +314,6 @@ class SyncEmitSource(Flow):
                     if self._q.qsize() > 0:
                         event = self._q.get_nowait()
                         if event:
-                            print("!!! break")
                             break
                     await asyncio.sleep(1)
                     can_block = await _commit_handled_events(self._outstanding_offsets, committer)
@@ -511,25 +510,6 @@ class AsyncFlowController(FlowControllerBase):
         flow (if any).
         """
         return await self._loop_task
-
-
-def _print_referrers(obj, level=1, original_obj=None):
-    if level > 5:
-        return
-    if not original_obj:
-        original_obj = obj
-    referrers = gc.get_referrers(obj)
-    for referrer in referrers:
-        # if type(referrer).__name__ == "frame":
-        #     continue
-        if referrer is original_obj:
-            print(f"{'>'*level}ORIGINAL EVENT OBJECT")
-        else:
-            print(
-                f"{'>'*level}referrer (id={id(referrer)}) is of type {type(referrer)} from module "
-                f"{type(referrer).__module__} – referrer={referrer}"
-            )
-            _print_referrers(referrer, level + 1, original_obj=original_obj)
 
 
 async def _commit_handled_events(outstanding_offsets_by_qualified_shard, committer, commit_all=False):
