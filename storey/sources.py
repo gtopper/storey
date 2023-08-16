@@ -17,6 +17,7 @@ import copy
 import gc
 import queue
 import threading
+import traceback
 import uuid
 import warnings
 import weakref
@@ -296,7 +297,11 @@ class SyncEmitSource(Flow):
         if self._explicit_ack and hasattr(self.context, "platform") and hasattr(self.context.platform, "explicit_ack"):
             committer = self.context.platform.explicit_ack
         while True:
+            print("!!! while True")
             event = None
+            print(f"!!! num_events_handled_without_commit={num_events_handled_without_commit}")
+            print(f"!!! self._q.empty()={self._q.empty()}")
+            print(f"!!! self._max_events_before_commit={self._max_events_before_commit}")
             if (
                 num_events_handled_without_commit > 0
                 and self._q.empty()
@@ -314,6 +319,10 @@ class SyncEmitSource(Flow):
                     can_block = await _commit_handled_events(self._outstanding_offsets, committer)
             if not event:
                 event = await loop.run_in_executor(None, self._q.get)
+            print(f"committer={committer}")
+            print(f"hasattr(event, \"path\")={hasattr(event, 'path')}")
+            print(f"hasattr(event, \"shard_id\")={hasattr(event, 'shard_id')}")
+            print(f"hasattr(event, \"offset\")={hasattr(event, 'offset')}")
             if committer and hasattr(event, "path") and hasattr(event, "shard_id") and hasattr(event, "offset"):
                 qualified_shard = (event.path, event.shard_id)
                 offsets = self._outstanding_offsets[qualified_shard]
@@ -327,6 +336,7 @@ class SyncEmitSource(Flow):
                     await _commit_handled_events(self._outstanding_offsets, committer, commit_all=True)
                     self._termination_future.set_result(termination_result)
             except BaseException as ex:
+                traceback.print_exc()
                 if event is not _termination_obj and event._awaitable_result:
                     event._awaitable_result._set_error(ex)
                 self._ex = ex
@@ -503,6 +513,13 @@ class AsyncFlowController(FlowControllerBase):
 
 
 async def _commit_handled_events(outstanding_offsets_by_qualified_shard, committer, commit_all=False):
+    print(
+        f"!!! _commit_handled_events("
+        f"outstanding_offsets_by_qualified_shard={outstanding_offsets_by_qualified_shard}, "
+        f"committer={committer}, "
+        f"commit_all={commit_all}"
+        f")"
+    )
     all_offsets_handled = True
     for qualified_shard, offsets in outstanding_offsets_by_qualified_shard.items():
         if commit_all and offsets:
@@ -519,8 +536,10 @@ async def _commit_handled_events(outstanding_offsets_by_qualified_shard, committ
                     break
                 last_handled_offset = offset.offset
                 num_to_clear += 1
+        print(f"!!! last_handled_offset={last_handled_offset}, num_to_clear={num_to_clear}")
         if last_handled_offset is not None:
             path, shard_id = qualified_shard
+            print(f"!!! Committing offset: path={path}, shard_id={shard_id}, last_handled_offset={last_handled_offset}")
             await committer(QualifiedOffset(path, shard_id, last_handled_offset))
             outstanding_offsets_by_qualified_shard[qualified_shard] = offsets[num_to_clear:]
     return all_offsets_handled
