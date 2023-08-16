@@ -293,6 +293,10 @@ class SyncEmitSource(Flow):
         self._termination_future = loop.create_future()
         committer = None
         num_events_handled_without_commit = 0
+        print(f"self._explicit_ack={self._explicit_ack}")
+        platform = getattr(self.context, 'platform')
+        print(f"getattr(self.context, 'platform')={platform}")
+        print(f"getattr(platform, 'explicit_ack')={getattr(platform, 'explicit_ack')}")
         if self._explicit_ack and hasattr(self.context, "platform") and hasattr(self.context.platform, "explicit_ack"):
             committer = self.context.platform.explicit_ack
         while True:
