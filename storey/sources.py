@@ -308,6 +308,7 @@ class SyncEmitSource(Flow):
                 while not can_block:
                     if self._q.qsize() > 0:
                         event = self._q.get_nowait()
+                        print(f"!!! self._q.get_nowait() got event with offset={event.offset}")
                         if event:
                             break
                     print("!!! sleeping 1 second")
@@ -315,6 +316,7 @@ class SyncEmitSource(Flow):
                     can_block = await _commit_handled_events(self._outstanding_offsets, committer)
             if not event:
                 event = await loop.run_in_executor(None, self._q.get)
+                print(f"!!! self._q.get got event with offset={event.offset}")
             if committer and hasattr(event, "path") and hasattr(event, "shard_id") and hasattr(event, "offset"):
                 qualified_shard = (event.path, event.shard_id)
                 offsets = self._outstanding_offsets[qualified_shard]
