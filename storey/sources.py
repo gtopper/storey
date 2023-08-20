@@ -363,6 +363,7 @@ class SyncEmitSource(Flow):
 
     def _emit(self, event):
         if event is not _termination_obj:
+            print(f"!!! SyncEmitSource._emit(): event.path={event.path}")
             self._raise_on_error(self._ex)
             if self._is_terminated:
                 raise ValueError("Cannot emit to a terminated flow")
