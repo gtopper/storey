@@ -258,6 +258,7 @@ class SyncEmitSource(Flow):
     """
 
     _legal_first_step = True
+    _backoff = [0, 1 / 16, 1 / 8, 1 / 4, 1 / 2, 1]
 
     def __init__(
         self,
@@ -305,8 +306,7 @@ class SyncEmitSource(Flow):
             ):
                 num_events_handled_without_commit = 0
                 can_block = await _commit_handled_events(self._outstanding_offsets, committer)
-                # start from 1/16 seconds and double on each iteration up to 1 second
-                sleep = 0.0625
+                iteration = 0
                 # In case we can't block because there are outstanding events
                 while not can_block:
                     if self._q.qsize() > 0:
@@ -314,10 +314,10 @@ class SyncEmitSource(Flow):
                         print(f"!!! self._q.get_nowait() got event with offset={event.offset}")
                         if event:
                             break
-                    if sleep < 1:
-                        sleep *= 2
+                    sleep = self._backoff[min(iteration, len(self._backoff))]
+                    iteration += 1
                     print(f"!!! sleeping {sleep} second")
-                    await asyncio.sleep(0.1)
+                    await asyncio.sleep(sleep)
                     can_block = await _commit_handled_events(self._outstanding_offsets, committer)
             if not event:
                 event = await loop.run_in_executor(None, self._q.get)
