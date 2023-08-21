@@ -529,6 +529,7 @@ async def _commit_handled_events(outstanding_offsets_by_qualified_shard, committ
                 num_to_clear += 1
         if last_handled_offset is not None:
             path, shard_id = qualified_shard
+            print(f"!!! committing path={path} shard_id={shard_id} last_handled_offset={last_handled_offset}")
             await committer(QualifiedOffset(path, shard_id, last_handled_offset))
             outstanding_offsets_by_qualified_shard[qualified_shard] = offsets[num_to_clear:]
     return all_offsets_handled
