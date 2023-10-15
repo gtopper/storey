@@ -1062,7 +1062,7 @@ class KafkaTarget(Flow, _Writer):
             self._producer.close()
             return await self._do_downstream(_termination_obj)
         else:
-            print(f"111 Kafka producer got event: {event}")
+            print(f"111 Kafka producer got event: {event.body}")
             key = None
             if event.key is not None:
                 key = stringify_key(event.key).encode("UTF-8")
