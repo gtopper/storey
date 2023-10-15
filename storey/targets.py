@@ -1057,10 +1057,12 @@ class KafkaTarget(Flow, _Writer):
         await self._lazy_init()
 
         if event is _termination_obj:
+            print("111 Terminating kafka producer")
             self._producer.flush()
             self._producer.close()
             return await self._do_downstream(_termination_obj)
         else:
+            print(f"111 Kafka producer got event: {event}")
             key = None
             if event.key is not None:
                 key = stringify_key(event.key).encode("UTF-8")
