@@ -320,6 +320,7 @@ class SyncEmitSource(Flow):
                     can_block = await _commit_handled_events(self._outstanding_offsets, committer)
             if not event:
                 event = await loop.run_in_executor(None, self._q.get)
+            print(f"111 event.path={getattr(event, 'path', None)}")
             if committer and hasattr(event, "path") and hasattr(event, "shard_id") and hasattr(event, "offset"):
                 qualified_shard = (event.path, event.shard_id)
                 offsets = self._outstanding_offsets[qualified_shard]
