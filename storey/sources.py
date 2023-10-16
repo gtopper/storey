@@ -297,6 +297,7 @@ class SyncEmitSource(Flow):
         num_events_handled_without_commit = 0
         if self._explicit_ack and hasattr(self.context, "platform") and hasattr(self.context.platform, "explicit_ack"):
             committer = self.context.platform.explicit_ack
+        print(f"111 _run_loop: committer={committer}")
         while True:
             event = None
             if (
@@ -509,6 +510,11 @@ class AsyncFlowController(FlowControllerBase):
 
 async def _commit_handled_events(outstanding_offsets_by_qualified_shard, committer, commit_all=False):
     all_offsets_handled = True
+    print(
+        f"111 _commit_handled_events: "
+        f"outstanding_offsets_by_qualified_shard={outstanding_offsets_by_qualified_shard} "
+        f"committer={committer} commit_all={commit_all}"
+    )
     if not commit_all:
         gc.collect()
     for qualified_shard, offsets in outstanding_offsets_by_qualified_shard.items():
@@ -521,10 +527,12 @@ async def _commit_handled_events(outstanding_offsets_by_qualified_shard, committ
             # go over offsets in the qualified shard by arrival order until we reach an unhandled offset
             for offset in offsets:
                 if not offset.is_ready_to_commit():
+                    print(f"111 _commit_handled_events: offset={offset} not ready to commit")
                     all_offsets_handled = False
                     break
                 last_handled_offset = offset.offset
                 num_to_clear += 1
+        print(f"111 _commit_handled_events: last_handled_offset={last_handled_offset}")
         if last_handled_offset is not None:
             path, shard_id = qualified_shard
             await committer(QualifiedOffset(path, shard_id, last_handled_offset))
