@@ -863,7 +863,7 @@ class StreamTarget(Flow, _Writer):
         return record_list_for_json
 
     def _send_batch(self, buffers, in_flight_reqs, buffer_events, in_flight_events, shard_id):
-        print(f"111 sending batch: shard_id={shard_id}, last offset = {buffer_events[-1].offset}")
+        print(f"111 sending batch: shard_id={shard_id}, last offset = {buffer_events[shard_id][-1].offset}")
         buffer = buffers[shard_id]
         if not buffer:
             return
