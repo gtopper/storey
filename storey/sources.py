@@ -258,7 +258,7 @@ class SyncEmitSource(Flow):
     """
 
     _legal_first_step = True
-    _backoff = [0, 1 / 16, 1 / 8, 1 / 4, 1 / 2, 1]
+    _backoff = [1, 2, 4, 8]
     _backoff_last_index = len(_backoff) - 1
 
     def __init__(
