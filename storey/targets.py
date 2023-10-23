@@ -866,7 +866,7 @@ class StreamTarget(Flow, _Writer):
         buffer = buffers[shard_id]
         if not buffer:
             return
-        print(f"111 sending batch: shard_id={shard_id}, last offset = {buffer[-1].offset}")
+        print(f"111 sending batch: shard_id={shard_id}")
         buffers[shard_id] = []
         in_flight_events[shard_id] = buffer_events[shard_id]
         buffer_events[shard_id] = []
