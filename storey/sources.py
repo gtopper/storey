@@ -17,6 +17,7 @@ import copy
 import gc
 import queue
 import threading
+import time
 import uuid
 import warnings
 import weakref
@@ -510,7 +511,10 @@ class AsyncFlowController(FlowControllerBase):
 async def _commit_handled_events(outstanding_offsets_by_qualified_shard, committer, commit_all=False):
     all_offsets_handled = True
     if not commit_all:
+        start = time.monotonic()
         gc.collect()
+        end = time.monotonic()
+        print(f"111 garbage collection took {end-start} seconds")
     for qualified_shard, offsets in outstanding_offsets_by_qualified_shard.items():
         if commit_all and offsets:
             last_handled_offset = offsets[-1].offset
@@ -527,7 +531,13 @@ async def _commit_handled_events(outstanding_offsets_by_qualified_shard, committ
                 num_to_clear += 1
         if last_handled_offset is not None:
             path, shard_id = qualified_shard
+            start = time.monotonic()
             await committer(QualifiedOffset(path, shard_id, last_handled_offset))
+            end = time.monotonic()
+            print(
+                f"111 committing offsets (path={path}, shard={shard_id}, offset={last_handled_offset}) "
+                f"took {end - start} seconds"
+            )
             outstanding_offsets_by_qualified_shard[qualified_shard] = offsets[num_to_clear:]
     return all_offsets_handled
 
