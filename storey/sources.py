@@ -306,15 +306,16 @@ class SyncEmitSource(Flow):
                 # TODO: Remove after transitioning to AsyncEmitSource, which would solve the underlying problem
                 can_block = num_offsets_not_handled <= 1
                 num_events_handled_without_commit = 0
-            while not can_block:
-                try:
-                    event = await loop.run_in_executor(None, self._q.get, True, self._max_wait_before_commit)
-                    break
-                except queue.Empty:
-                    pass
-                num_offsets_not_handled = await _commit_handled_events(self._outstanding_offsets, committer)
-                can_block = num_offsets_not_handled <= 1
-                num_events_handled_without_commit = 0
+            if num_events_handled_without_commit > 0:
+                while not can_block:
+                    try:
+                        event = await loop.run_in_executor(None, self._q.get, True, self._max_wait_before_commit)
+                        break
+                    except queue.Empty:
+                        pass
+                    num_offsets_not_handled = await _commit_handled_events(self._outstanding_offsets, committer)
+                    can_block = num_offsets_not_handled <= 1
+                    num_events_handled_without_commit = 0
             if event is None:
                 event = await loop.run_in_executor(None, self._q.get)
             if committer and hasattr(event, "path") and hasattr(event, "shard_id") and hasattr(event, "offset"):
