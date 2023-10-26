@@ -305,9 +305,10 @@ class SyncEmitSource(Flow):
                 # Due to the last event not being garbage collected, we tolerate a single unhandled event
                 # TODO: Remove after transitioning to AsyncEmitSource, which would solve the underlying problem
                 can_block = num_offsets_not_handled <= 1
-            while event is None and not can_block:
+            while not can_block:
                 try:
                     event = await loop.run_in_executor(None, self._q.get, True, self._max_wait_before_commit)
+                    break
                 except queue.Empty:
                     pass
                 num_offsets_not_handled = await _commit_handled_events(self._outstanding_offsets, committer)
