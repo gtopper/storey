@@ -299,23 +299,19 @@ class SyncEmitSource(Flow):
             committer = self.context.platform.explicit_ack
         while True:
             event = None
-            if (
-                num_events_handled_without_commit > 0
-                and self._q.empty()
-                or num_events_handled_without_commit >= self._max_events_before_commit
-            ):
-                num_events_handled_without_commit = 0
-                while event is None:
-                    num_offsets_not_handled = await _commit_handled_events(self._outstanding_offsets, committer)
-                    # Due to the last event not being garbage collected, we tolerate a single unhandled event
-                    # TODO: Remove after transitioning to AsyncEmitSource, which would solve the underlying problem
-                    can_block = num_offsets_not_handled <= 1
-                    if can_block:
-                        break
-                    try:
-                        event = await loop.run_in_executor(None, self._q.get, True, self._max_wait_before_commit)
-                    except queue.Empty:
-                        pass
+            can_block = False
+            if num_events_handled_without_commit >= self._max_events_before_commit:
+                num_offsets_not_handled = await _commit_handled_events(self._outstanding_offsets, committer)
+                # Due to the last event not being garbage collected, we tolerate a single unhandled event
+                # TODO: Remove after transitioning to AsyncEmitSource, which would solve the underlying problem
+                can_block = num_offsets_not_handled <= 1
+            while event is None and not can_block:
+                try:
+                    event = await loop.run_in_executor(None, self._q.get, True, self._max_wait_before_commit)
+                except queue.Empty:
+                    pass
+                num_offsets_not_handled = await _commit_handled_events(self._outstanding_offsets, committer)
+                can_block = num_offsets_not_handled <= 1
             if event is None:
                 event = await loop.run_in_executor(None, self._q.get)
             if committer and hasattr(event, "path") and hasattr(event, "shard_id") and hasattr(event, "offset"):
