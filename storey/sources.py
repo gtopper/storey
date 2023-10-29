@@ -533,11 +533,7 @@ async def _commit_handled_events(outstanding_offsets_by_qualified_shard, committ
             # go over offsets in the qualified shard by arrival order until we reach an unhandled offset
             for i, offset in enumerate(offsets):
                 if not offset.is_ready_to_commit():
-                    uncommitted_event = offset.event_weakref()()
-                    print(f"111 failed to commit offset {offset}. Referrers:")
-                    referrers = gc.get_referrers(uncommitted_event)
-                    for referrer in referrers:
-                        print(f"111   {referrer}")
+                    print(f"111 failed to commit offset {offset}")
                     num_offsets_not_handled += len(offsets) - i
                     break
                 last_handled_offset = offset.offset
