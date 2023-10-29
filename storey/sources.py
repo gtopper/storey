@@ -250,6 +250,7 @@ class SyncEmitSource(Flow):
     :param buffer_size: size of the incoming event buffer. Defaults to 8.
     :param key_field: Field to extract and use as the key. Optional.
     :param max_events_before_commit: Maximum number of events to be processed before committing offsets.
+      Defaults to 10,000.
     :param explicit_ack: Whether to explicitly commit offsets. Defaults to False.
     :param name: Name of this step, as it should appear in logs. Defaults to class name (SyncEmitSource).
     :type name: string
@@ -279,7 +280,7 @@ class SyncEmitSource(Flow):
             raise ValueError("Buffer size must be positive")
         self._q = queue.Queue(buffer_size)
         self._key_field = key_field
-        self._max_events_before_commit = max_events_before_commit or 1000
+        self._max_events_before_commit = max_events_before_commit or 10000
         self._explicit_ack = explicit_ack
         self._termination_q = queue.Queue(1)
         self._ex = None
@@ -543,6 +544,7 @@ class AsyncEmitSource(Flow):
     :param buffer_size: size of the incoming event buffer. Defaults to 8.
     :param key_field: Field to extract and use as the key. Optional.
     :param max_events_before_commit: Maximum number of events to be processed before committing offsets.
+      Defaults to 10,000.
     :param explicit_ack: Whether to explicitly commit offsets. Defaults to False.
     :param name: Name of this step, as it should appear in logs. Defaults to class name (AsyncEmitSource).
     :type name: string
@@ -570,7 +572,7 @@ class AsyncEmitSource(Flow):
             kwargs["buffer_size"] = buffer_size
         self._q = asyncio.Queue(buffer_size)
         self._key_field = key_field
-        self._max_events_before_commit = max_events_before_commit or 1000
+        self._max_events_before_commit = max_events_before_commit or 10000
         self._explicit_ack = explicit_ack
         self._ex = None
         self._closeables = []
