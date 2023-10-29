@@ -316,6 +316,7 @@ class SyncEmitSource(Flow):
                 # Due to the last event not being garbage collected, we tolerate a single unhandled event
                 # TODO: Fix after transitioning to AsyncEmitSource, which would solve the underlying problem
                 while num_offsets_not_handled > 1:
+                    print(f"111 num_offsets_not_handled={num_offsets_not_handled}")
                     try:
                         event = await loop.run_in_executor(None, self._q.get, True, self._max_wait_before_commit)
                         break
@@ -518,7 +519,10 @@ class AsyncFlowController(FlowControllerBase):
 async def _commit_handled_events(outstanding_offsets_by_qualified_shard, committer, commit_all=False):
     num_offsets_not_handled = 0
     if not commit_all:
+        start = time.monotonic()
         gc.collect()
+        end = time.monotonic()
+        print(f"111 garbage collection took {end-start} seconds")
     for qualified_shard, offsets in outstanding_offsets_by_qualified_shard.items():
         if commit_all and offsets:
             last_handled_offset = offsets[-1].offset
@@ -536,6 +540,9 @@ async def _commit_handled_events(outstanding_offsets_by_qualified_shard, committ
         if last_handled_offset is not None:
             path, shard_id = qualified_shard
             await committer(QualifiedOffset(path, shard_id, last_handled_offset))
+            print(
+                f"111 committing offsets (path={path}, shard={shard_id}, offset={last_handled_offset})"
+            )
             outstanding_offsets_by_qualified_shard[qualified_shard] = offsets[num_to_clear:]
     return num_offsets_not_handled
 
