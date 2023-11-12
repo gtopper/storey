@@ -444,10 +444,11 @@ class CSVTarget(_Batching, _Writer):
                 line_number = 0
                 while True:
                     batch = self._data_buffer.get()
-                    print(f"batch={batch}")
+                    print(f"111 batch={batch}")
                     if batch is _termination_obj:
                         break
                     for data in batch:
+                        print(f"111 data={data}")
                         if not got_first_event:
                             if not self._columns and self._write_header:
                                 raise ValueError(
@@ -456,8 +457,10 @@ class CSVTarget(_Batching, _Writer):
                             if self._write_header:
                                 csv_writer.writerow(self._columns)
                             got_first_event = True
+                        print("111 csv_writer.writerow(data)")
                         csv_writer.writerow(data)
                         line_number += 1
+                    print("111 f.flush()")
                     f.flush()
         except BaseException as ex:
             if self.logger:
