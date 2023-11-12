@@ -459,6 +459,8 @@ class CSVTarget(_Batching, _Writer):
                         line_number += 1
                     f.flush()
         except BaseException as ex:
+            if self.logger:
+                self.logger.error(f"CSVTarget failed: {ex}\n{message}")
             self._blocking_io_loop_failed = True
             if not self._data_buffer.empty():
                 self._data_buffer.get()
