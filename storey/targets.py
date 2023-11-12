@@ -444,6 +444,7 @@ class CSVTarget(_Batching, _Writer):
                 line_number = 0
                 while True:
                     batch = self._data_buffer.get()
+                    print(f"batch={batch}")
                     if batch is _termination_obj:
                         break
                     for data in batch:
