@@ -435,7 +435,10 @@ class CSVTarget(_Batching, _Writer):
     def _blocking_io_loop(self):
         try:
             got_first_event = False
+            print(f"111 self._path={self._path}")
             fs, file_path = url_to_file_system(self._path, self._storage_options)
+            print(f"111 file_path={file_path}")
+            print(f"111 fs={fs}")
             dirname = os.path.dirname(self._path)
             if dirname and not fs.exists(dirname):
                 fs.makedirs(dirname, exist_ok=True)
