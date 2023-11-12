@@ -439,6 +439,7 @@ class CSVTarget(_Batching, _Writer):
             dirname = os.path.dirname(self._path)
             if dirname and not fs.exists(dirname):
                 fs.makedirs(dirname, exist_ok=True)
+            print(f"111 file_path={file_path}")
             with fs.open(file_path, mode="w") as f:
                 csv_writer = csv.writer(f, _V3ioCSVDialect())
                 line_number = 0
