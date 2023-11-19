@@ -600,6 +600,10 @@ class ParquetTarget(_Batching, _Writer):
         return self._event_to_writer_entry(event)
 
     async def _emit(self, batch, batch_key, batch_time, batch_events, last_event_time=None):
+        print(
+            f"111 _emit: batch={batch}, batch_key={batch_key} batch_time={batch_time}, batch_events={batch_events}, "
+            f"last_event_time={last_event_time}"
+        )
         df_columns = []
         if self._non_partition_columns:
             if self._index_cols:
@@ -645,6 +649,7 @@ class ParquetTarget(_Batching, _Writer):
             kwargs = {}
             if self._schema is not None:
                 kwargs["schema"] = self._schema
+            print(f"111 df.to_parquet(path={file}, index={bool(self._index_cols)}, **{kwargs})")
             df.to_parquet(path=file, index=bool(self._index_cols), **kwargs)
             if not self._last_written_event or last_event_time > self._last_written_event:
                 self._last_written_event = last_event_time
