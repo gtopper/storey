@@ -867,7 +867,7 @@ class StreamTarget(Flow, _Writer):
     def _send_batch(self, buffers, in_flight_reqs, buffer_events, in_flight_events, shard_id):
         buffer = buffers[shard_id]
         if not buffer:
-            return
+            return False
         print(f"111 Sending batch for shard_id={shard_id}")
         buffers[shard_id] = []
         in_flight_events[shard_id] = buffer_events[shard_id]
@@ -875,6 +875,7 @@ class StreamTarget(Flow, _Writer):
         request_body = self._build_request_put_records(shard_id, buffer)
         request = self._storage._put_records(self._container, self._stream_path, request_body)
         in_flight_reqs[shard_id] = asyncio.get_running_loop().create_task(request)
+        return True
 
     async def _worker(self):
         try:
@@ -898,12 +899,14 @@ class StreamTarget(Flow, _Writer):
                         print("111 queue is empty")
                         for shard_id in range(self._shards):
                             req = in_flight_reqs[shard_id]
-                            if req:
-                                request_sent_on_empty_queue = True
                             in_flight_reqs[shard_id] = None
                             await self._handle_response(req, shard_id)
                             in_flight_events[shard_id] = None
-                            self._send_batch(buffers, in_flight_reqs, buffer_events, in_flight_events, shard_id)
+                            batch_sent = self._send_batch(
+                                buffers, in_flight_reqs, buffer_events, in_flight_events, shard_id
+                            )
+                            if batch_sent:
+                                request_sent_on_empty_queue = True
                     if request_sent_on_empty_queue:
                         print("111 request_sent_on_empty_queue")
                         continue
