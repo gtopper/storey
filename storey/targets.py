@@ -847,8 +847,9 @@ class StreamTarget(Flow, _Writer):
         self._worker_exited = False
 
     @staticmethod
-    async def _handle_response(request):
+    async def _handle_response(request, shard_id):
         if request:
+            print(f"111 _handle_response: shard_id={shard_id}")
             response = await request
             if response.output.failed_record_count == 0:
                 return
@@ -867,6 +868,7 @@ class StreamTarget(Flow, _Writer):
         buffer = buffers[shard_id]
         if not buffer:
             return
+        print(f"111 Sending batch for shard_id={shard_id}")
         buffers[shard_id] = []
         in_flight_events[shard_id] = buffer_events[shard_id]
         buffer_events[shard_id] = []
@@ -898,19 +900,20 @@ class StreamTarget(Flow, _Writer):
                             if req:
                                 request_sent_on_empty_queue = True
                             in_flight_reqs[shard_id] = None
-                            await self._handle_response(req)
+                            await self._handle_response(req, shard_id)
                             in_flight_events[shard_id] = None
                             self._send_batch(buffers, in_flight_reqs, buffer_events, in_flight_events, shard_id)
                     if request_sent_on_empty_queue:
+                        print("111 request_sent_on_empty_queue")
                         continue
                     event = await self._q.get()
                     if event is _termination_obj:  # handle outstanding batches and in flight requests on termination
                         for req in in_flight_reqs:
-                            await self._handle_response(req)
+                            await self._handle_response(req, shard_id)
                         for shard_id in range(self._shards):
                             self._send_batch(buffers, in_flight_reqs, buffer_events, in_flight_events, shard_id)
                         for req in in_flight_reqs:
-                            await self._handle_response(req)
+                            await self._handle_response(req, shard_id)
                         break
                     sharding_func_result = self._sharding_func(event)
                     if isinstance(sharding_func_result, int):
@@ -929,7 +932,7 @@ class StreamTarget(Flow, _Writer):
                         if in_flight_reqs[shard_id]:
                             req = in_flight_reqs[shard_id]
                             in_flight_reqs[shard_id] = None
-                            await self._handle_response(req)
+                            await self._handle_response(req, shard_id)
                             in_flight_events[shard_id] = None
                         self._send_batch(buffers, in_flight_reqs, buffer_events, in_flight_events, shard_id)
                 except BaseException as ex:
