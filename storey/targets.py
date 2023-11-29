@@ -895,6 +895,7 @@ class StreamTarget(Flow, _Writer):
                 try:
                     request_sent_on_empty_queue = False
                     if self._q.empty():
+                        print("111 queue is empty")
                         for shard_id in range(self._shards):
                             req = in_flight_reqs[shard_id]
                             if req:
@@ -906,6 +907,7 @@ class StreamTarget(Flow, _Writer):
                     if request_sent_on_empty_queue:
                         print("111 request_sent_on_empty_queue")
                         continue
+                    print("111 await self._q.get()")
                     event = await self._q.get()
                     if event is _termination_obj:  # handle outstanding batches and in flight requests on termination
                         for req in in_flight_reqs:
