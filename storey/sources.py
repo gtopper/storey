@@ -610,6 +610,8 @@ class AsyncEmitSource(Flow):
         last_commit_time = time.monotonic()
         if self._explicit_ack and hasattr(self.context, "platform") and hasattr(self.context.platform, "explicit_ack"):
             committer = self.context.platform.explicit_ack
+        print(f"self.context.platform={getattr(self.context, 'platform', None)}")
+        print(f"committer={committer}")
         while True:
             event = None
             if committer:
@@ -624,7 +626,9 @@ class AsyncEmitSource(Flow):
                 # In case we can't block because there are outstanding events
                 while num_offsets_not_handled > 0:
                     try:
-                        self.logger.info(f"111 Getting from queue with timeout of {self._max_wait_before_commit} seconds")
+                        self.logger.info(
+                            f"111 Getting from queue with timeout of {self._max_wait_before_commit} seconds"
+                        )
                         event = await asyncio.wait_for(self._q.get(), self._max_wait_before_commit)
                         self.logger.info("111 Got event. Breaking.")
                         break
