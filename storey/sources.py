@@ -635,7 +635,7 @@ class AsyncEmitSource(Flow):
                     events_handled_since_commit = 0
                     last_commit_time = time.monotonic()
             if not event:
-                print("111 Getting from queue without timeout")
+                # print("111 Getting from queue without timeout")
                 event = await self._q.get()
             if committer and hasattr(event, "path") and hasattr(event, "shard_id") and hasattr(event, "offset"):
                 qualified_shard = (event.path, event.shard_id)
