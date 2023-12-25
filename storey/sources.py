@@ -548,6 +548,7 @@ async def _commit_handled_events(outstanding_offsets_by_qualified_shard, committ
             path, shard_id = qualified_shard
             await committer(QualifiedOffset(path, shard_id, last_handled_offset))
             outstanding_offsets_by_qualified_shard[qualified_shard] = offsets[num_to_clear:]
+    print(f"111 num_offsets_not_handled={num_offsets_not_handled}")
     return num_offsets_not_handled
 
 
@@ -623,14 +624,18 @@ class AsyncEmitSource(Flow):
                 # In case we can't block because there are outstanding events
                 while num_offsets_not_handled > 0:
                     try:
+                        print(f"111 Getting from queue with timeout of {self._max_wait_before_commit} seconds")
                         event = await asyncio.wait_for(self._q.get(), self._max_wait_before_commit)
+                        print("111 Got event. Breaking.")
                         break
                     except asyncio.TimeoutError:
+                        print("111 Timed out getting from queue")
                         pass
                     num_offsets_not_handled = await _commit_handled_events(self._outstanding_offsets, committer)
                     events_handled_since_commit = 0
                     last_commit_time = time.monotonic()
             if not event:
+                print("111 Getting from queue without timeout")
                 event = await self._q.get()
             if committer and hasattr(event, "path") and hasattr(event, "shard_id") and hasattr(event, "offset"):
                 qualified_shard = (event.path, event.shard_id)
