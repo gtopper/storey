@@ -624,18 +624,18 @@ class AsyncEmitSource(Flow):
                 # In case we can't block because there are outstanding events
                 while num_offsets_not_handled > 0:
                     try:
-                        print(f"111 Getting from queue with timeout of {self._max_wait_before_commit} seconds")
+                        self.logger.info(f"111 Getting from queue with timeout of {self._max_wait_before_commit} seconds")
                         event = await asyncio.wait_for(self._q.get(), self._max_wait_before_commit)
-                        print("111 Got event. Breaking.")
+                        self.logger.info("111 Got event. Breaking.")
                         break
                     except asyncio.TimeoutError:
-                        print("111 Timed out getting from queue")
+                        self.logger.info("111 Timed out getting from queue")
                         pass
                     num_offsets_not_handled = await _commit_handled_events(self._outstanding_offsets, committer)
                     events_handled_since_commit = 0
                     last_commit_time = time.monotonic()
             if not event:
-                # print("111 Getting from queue without timeout")
+                self.logger.info("111 Getting from queue without timeout")
                 event = await self._q.get()
             if committer and hasattr(event, "path") and hasattr(event, "shard_id") and hasattr(event, "offset"):
                 qualified_shard = (event.path, event.shard_id)
