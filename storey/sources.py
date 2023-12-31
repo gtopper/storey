@@ -308,7 +308,7 @@ class SyncEmitSource(Flow):
         last_commit_time = time.monotonic()
         if self._explicit_ack and hasattr(self.context, "platform") and hasattr(self.context.platform, "explicit_ack"):
             committer = self.context.platform.explicit_ack
-        event_count = 0
+        is_first_event = True
         while True:
             event = None
             if committer:
@@ -333,11 +333,12 @@ class SyncEmitSource(Flow):
                     last_commit_time = time.monotonic()
             if event is None:
                 event = await loop.run_in_executor(None, self._q.get)
-            self.logger.info(
-                f"111 Worker ID is {self.context.worker_id}. "
-                f"Event #{event_count} shard_id={event.shard_id} offset={event.offset}"
-            )
-            event_count += 1
+            if is_first_event:
+                self.logger.info(
+                    f"111 Worker ID is {self.context.worker_id}. "
+                    f"First event shard_id={event.shard_id} offset={event.offset}"
+                )
+                is_first_event = False
             if committer and hasattr(event, "path") and hasattr(event, "shard_id") and hasattr(event, "offset"):
                 qualified_shard = (event.path, event.shard_id)
                 offsets = self._outstanding_offsets[qualified_shard]
