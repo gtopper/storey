@@ -481,6 +481,11 @@ class CSVTarget(_Batching, _Writer):
         if not self._blocking_io_loop_future:
             self._blocking_io_loop_future = asyncio.get_running_loop().run_in_executor(None, self._blocking_io_loop)
 
+        print(
+            f"111 CSVTarget got a batch ending in offset={batch_events[-1].offset}. "
+            f"shard_id={batch_events[-1].shard_id} worker={self.context.worker_id}"
+        )
+
         if self._blocking_io_loop_failed:
             await self._blocking_io_loop_future
         else:
