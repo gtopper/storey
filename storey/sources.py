@@ -334,19 +334,25 @@ class SyncEmitSource(Flow):
                     last_commit_time = time.monotonic()
             if event is None:
                 event = await loop.run_in_executor(None, self._q.get)
-            if is_first_event:
-                self.logger.info(
-                    f"111 First event: worker={self.context.worker_id}, "
-                    f"shard_id={event.shard_id}, offset={event.offset}"
-                )
+
+            if event is not _termination_obj:
+                if is_first_event:
+                    self.logger.info(
+                        f"111 First event: worker={self.context.worker_id}, "
+                        f"shard_id={event.shard_id}, offset={event.offset}"
+                    )
+                    is_first_event = False
+                if event.offset <= last_offset:
+                    self.logger.info(
+                        f"111 Got duplicate event offset {event.offset}: worker={self.context.worker_id}, "
+                        f"shard_id={event.shard_id}"
+                    )
+                else:
+                    last_offset = event.offset
+            elif is_first_event:
+                self.logger.info(f"111 First event was termination event worker={self.context.worker_id}")
                 is_first_event = False
-            if event.offset <= last_offset:
-                self.logger.info(
-                    f"111 Got duplicate event offset {event.offset}: worker={self.context.worker_id}, "
-                    f"shard_id={event.shard_id}"
-                )
-            else:
-                last_offset = event.offset
+
             if committer and hasattr(event, "path") and hasattr(event, "shard_id") and hasattr(event, "offset"):
                 qualified_shard = (event.path, event.shard_id)
                 offsets = self._outstanding_offsets[qualified_shard]
