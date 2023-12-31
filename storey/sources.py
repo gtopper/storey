@@ -337,7 +337,7 @@ class SyncEmitSource(Flow):
                 f"111 Worker ID is {self.context.worker_id}. "
                 f"Event #{event_count} shard_id={event.shard_id} offset={event.offset}"
             )
-            event_count += event_count
+            event_count += 1
             if committer and hasattr(event, "path") and hasattr(event, "shard_id") and hasattr(event, "offset"):
                 qualified_shard = (event.path, event.shard_id)
                 offsets = self._outstanding_offsets[qualified_shard]
