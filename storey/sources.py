@@ -309,7 +309,7 @@ class SyncEmitSource(Flow):
         if self._explicit_ack and hasattr(self.context, "platform") and hasattr(self.context.platform, "explicit_ack"):
             committer = self.context.platform.explicit_ack
         is_first_event = True
-        last_offset = -1
+        last_offsets = {}
         while True:
             event = None
             if committer:
@@ -336,19 +336,19 @@ class SyncEmitSource(Flow):
                 event = await loop.run_in_executor(None, self._q.get)
 
             if event is not _termination_obj:
-                if is_first_event:
+                if event.shard_id not in last_offsets:
                     self.logger.info(
                         f"111 First event: worker={self.context.worker_id}, "
                         f"shard_id={event.shard_id}, offset={event.offset}"
                     )
-                    is_first_event = False
-                if event.offset <= last_offset:
+                    last_offsets[event.shard_id] = event.offset
+                elif event.offset <= last_offsets[event.shard_id]:
                     self.logger.info(
                         f"111 Got duplicate event offset {event.offset}: worker={self.context.worker_id}, "
                         f"shard_id={event.shard_id}"
                     )
                 else:
-                    last_offset = event.offset
+                    last_offsets[event.shard_id] = event.offset
             elif is_first_event:
                 self.logger.info(f"111 First event was termination event worker={self.context.worker_id}")
                 is_first_event = False
