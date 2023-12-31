@@ -308,7 +308,6 @@ class SyncEmitSource(Flow):
         last_commit_time = time.monotonic()
         if self._explicit_ack and hasattr(self.context, "platform") and hasattr(self.context.platform, "explicit_ack"):
             committer = self.context.platform.explicit_ack
-        is_first_event = True
         last_offsets = {}
         while True:
             event = None
@@ -349,9 +348,10 @@ class SyncEmitSource(Flow):
                     )
                 else:
                     last_offsets[event.shard_id] = event.offset
-            elif is_first_event:
+            elif event.shard_id not in last_offsets:
                 self.logger.info(f"111 First event was termination event worker={self.context.worker_id}")
-                is_first_event = False
+            else:
+                self.logger.info(f"111 Got termination event worker={self.context.worker_id}")
 
             if committer and hasattr(event, "path") and hasattr(event, "shard_id") and hasattr(event, "offset"):
                 qualified_shard = (event.path, event.shard_id)
