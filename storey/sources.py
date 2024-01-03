@@ -348,7 +348,7 @@ class SyncEmitSource(Flow):
                     )
                 else:
                     last_offsets[event.shard_id] = event.offset
-            elif event.shard_id not in last_offsets:
+            elif len(last_offsets) == 0:
                 self.logger.info(f"111 First event was termination event worker={self.context.worker_id}")
             else:
                 self.logger.info(f"111 Got termination event worker={self.context.worker_id}")
