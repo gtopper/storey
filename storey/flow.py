@@ -1071,8 +1071,11 @@ class _Batching(Flow):
         del self._batch_events[batch_key]
 
     async def _emit_all(self):
+        self.logger.info(f"111 _Batching._emit_all: emitting {len(self._batch)} batches")
         for key in list(self._batch.keys()):
+            self.logger.info(f"111 _Batching._emit_all: emitting key={key}")
             await self._emit_batch(key)
+            self.logger.info(f"111 _Batching._emit_all: done emitting key={key}")
 
 
 class Batch(_Batching):
