@@ -637,7 +637,7 @@ class AsyncEmitSource(Flow):
                     except TimeoutError:
                         self.logger.info("111 Timed out getting from queue")
                         pass
-                    except:
+                    except BaseException:
                         traceback.print_exc()
                         raise
                     num_offsets_not_handled = await _commit_handled_events(self._outstanding_offsets, committer)
