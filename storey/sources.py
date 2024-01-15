@@ -628,11 +628,7 @@ class AsyncEmitSource(Flow):
                 # In case we can't block because there are outstanding events
                 while num_offsets_not_handled > 0:
                     try:
-                        self.logger.info(
-                            f"111 Getting from queue with timeout of {self._max_wait_before_commit} seconds"
-                        )
                         event = await self._q.get(self._max_wait_before_commit)
-                        self.logger.info("111 Got event. Breaking.")
                         break
                     except TimeoutError:
                         self.logger.info("111 Timed out getting from queue")
