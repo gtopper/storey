@@ -649,9 +649,9 @@ class AsyncEmitSource(Flow):
                 num_offsets_not_handled += 1
                 events_handled_since_commit += 1
             try:
-                self.logger.info("111 AsyncEmitSource calling _do_downstream()")
+                # self.logger.info("111 AsyncEmitSource calling _do_downstream()")
                 termination_result = await self._do_downstream(event)
-                self.logger.info(f"111 AsyncEmitSource got termination result {termination_result}")
+                # self.logger.info(f"111 AsyncEmitSource got termination result {termination_result}")
                 if event is _termination_obj:
                     # We can commit all at this point because termination of
                     # all downstream steps completed successfully.
@@ -674,7 +674,7 @@ class AsyncEmitSource(Flow):
                     await self._q.get()
                 self._raise_on_error()
             finally:
-                self.logger.info("111 AsyncEmitSource reached finally clause")
+                # self.logger.info("111 AsyncEmitSource reached finally clause")
                 if event is _termination_obj or self._ex:
                     for closeable in self._closeables:
                         try:
