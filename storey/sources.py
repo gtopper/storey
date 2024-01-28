@@ -707,6 +707,7 @@ class AsyncEmitSource(Flow):
 
     def run(self):
         """Starts the flow"""
+        print("111 graph code:\n" + self.to_code())
         self._closeables = super().run()
         loop_task = asyncio.get_running_loop().create_task(self._run_loop())
         has_complete = self._check_step_in_flow(Complete)
