@@ -969,6 +969,7 @@ class ConcurrentExecution(_ConcurrentJobExecution):
             if self._pass_context:
                 if isinstance(self._executor, ProcessPoolExecutor):
                     # dill, unlike pickle, is able to serialize function objects
+                    dill.detect.trace(True)
                     context = dill.dumps(self.context)
                     func = functools.partial(_unpickle_context_and_call, self._event_processor)
                 args.append(context)
