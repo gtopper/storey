@@ -1032,6 +1032,7 @@ class StreamTarget(Flow, _Writer):
         in_flight_events[shard_id] = buffer_events[shard_id]
         buffer_events[shard_id] = []
         request_body = self._build_request_put_records(shard_id, buffer)
+        print(f"111 StreamTarget: request_body={request_body}")
         request = self._storage._put_records(self._container, self._stream_path, request_body)
         in_flight_reqs[shard_id] = asyncio.get_running_loop().create_task(request)
         return True
@@ -1147,6 +1148,7 @@ class StreamTarget(Flow, _Writer):
             await self._worker_awaitable
             return await self._do_downstream(_termination_obj)
         else:
+            print(f"111 StreamTarget: self._q.put({event.body})")
             await self._q.put(event)
             if self._worker_exited:
                 await self._worker_awaitable
