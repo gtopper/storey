@@ -1001,7 +1001,7 @@ class StreamTarget(Flow, _Writer):
 
         self._full_event = full_event
 
-        self._lazy_init_lock = asyncio.Lock()
+        self._lazy_init_lock = None
 
     def _init(self):
         Flow._init(self)
@@ -1122,6 +1122,8 @@ class StreamTarget(Flow, _Writer):
         # pseudo-concurrently. Alternatively, we could set self._initialized to True before awaiting, but that would
         # be incorrect in case an error is raised.
         if not self._initialized:
+            if not self._lazy_init_lock:
+                self._lazy_init_lock = asyncio.Lock()
             async with self._lazy_init_lock:
                 if not self._initialized:
                     status_code = await self._storage._create_stream(
