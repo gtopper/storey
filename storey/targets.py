@@ -1072,6 +1072,7 @@ class StreamTarget(Flow, _Writer):
                     if request_sent_on_empty_queue:
                         continue
                     event = await self._q.get()
+                    print(f"111 StreamTarget._worker: got event. event.body={event.body}")
                     if event is _termination_obj:  # handle outstanding batches and in flight requests on termination
                         for req in in_flight_reqs:
                             await self._handle_response(req)
