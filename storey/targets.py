@@ -1012,6 +1012,7 @@ class StreamTarget(Flow, _Writer):
         if request:
             response = await request
             if response.output.failed_record_count == 0:
+                print(f"111 StreamTarget._handle_response: received response without errors")
                 return
             raise V3ioError(f"Failed to put records to V3IO. Got {response.status_code} response: {response.body}")
 
@@ -1032,7 +1033,7 @@ class StreamTarget(Flow, _Writer):
         in_flight_events[shard_id] = buffer_events[shard_id]
         buffer_events[shard_id] = []
         request_body = self._build_request_put_records(shard_id, buffer)
-        print(f"111 StreamTarget: request_body={request_body}")
+        print(f"111 StreamTarget._send_batch: request_body={request_body}")
         request = self._storage._put_records(self._container, self._stream_path, request_body)
         in_flight_reqs[shard_id] = asyncio.get_running_loop().create_task(request)
         return True
@@ -1067,6 +1068,7 @@ class StreamTarget(Flow, _Writer):
                             )
                             if batch_sent:
                                 request_sent_on_empty_queue = True
+                    print(f"111 StreamTarget._worker: request_sent_on_empty_queue={request_sent_on_empty_queue}")
                     if request_sent_on_empty_queue:
                         continue
                     event = await self._q.get()
@@ -1089,6 +1091,7 @@ class StreamTarget(Flow, _Writer):
                     record = self._event_to_writer_entry(event)
                     if self._full_event:
                         record = Event.wrap_for_serialization(event, record)
+                    print(f"111 StreamTarget._worker: Adding record {record} to buffer for shard {shard_id}")
                     buffers[shard_id].append(record)
                     buffer_events[shard_id].append(event)
                     if len(buffers[shard_id]) >= self._batch_size:
