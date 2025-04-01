@@ -248,6 +248,7 @@ class V3ioDriver(NeedsV3ioAccess, Driver):
             return
 
         key = str(key)
+        print(f"111a table_path={table_path} key={key} update_expression={update_expression}")
         response = await self._v3io_client.kv.update(
             container,
             table_path,
@@ -267,6 +268,7 @@ class V3ioDriver(NeedsV3ioAccess, Driver):
                 condition_expression,
                 pending_updates,
             ) = self._build_feature_store_update_expression(aggr_item, additional_data, False, pending_updates)
+            print(f"111b table_path={table_path} key={key} update_expression={update_expression}")
             response = await self._v3io_client.kv.update(
                 container,
                 table_path,

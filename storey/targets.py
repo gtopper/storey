@@ -1442,6 +1442,7 @@ class NoSqlTarget(_Writer, Flow):
         key = stringify_key(event.key)
         if not self._table._flush_interval_secs:
             data_to_persist = self._event_to_writer_entry(event)
+            print(f"111 key={key} data_to_persist={data_to_persist}")
             await self._table._persist(_PersistJob(key, data_to_persist, self._handle_completed, event))
         else:
             data_to_persist = self._event_to_writer_entry(event)
