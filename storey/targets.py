@@ -1440,6 +1440,7 @@ class NoSqlTarget(_Writer, Flow):
             raise ValueError("Event could not be written to table because it has no key")
 
         key = stringify_key(event.key)
+        print(f"111 NoSqlTarget: event.key={event.key} even.body={event.body}")
         if not self._table._flush_interval_secs:
             data_to_persist = self._event_to_writer_entry(event)
             print(f"111 key={key} data_to_persist={data_to_persist}")
