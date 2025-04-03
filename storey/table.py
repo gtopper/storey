@@ -410,11 +410,18 @@ class Table:
                     task = await self._q.get()
                     received_job_count += 1
                     if task is _termination_obj:
+                        print("111 persist_worker got termination event")
                         if received_job_count in self_sent_jobs:
+                            print("111 persist_worker put termination event back into queue")
                             await self._q.put(_termination_obj)
                             continue
-                        for _, pending_event in self._pending_by_key.items():
+                        print(f"111 persist_worker flushing data for {len(self._pending_by_key)} keys")
+                        for key, pending_event in self._pending_by_key.items():
                             if pending_event.pending and not pending_event.in_flight:
+                                print(
+                                    f"111 persist_worker flushing data for key {key} with "
+                                    f"{pending_event.pending} pending jobs"
+                                )
                                 for job in pending_event.pending:
                                     resp = await self._internal_persist_key(
                                         job.key,
@@ -424,6 +431,7 @@ class Table:
                                     )
                                     if job.callback:
                                         await job.callback(job.extra_data, resp)
+                        print("111 persist_worker flushing done flushing all data for termination event")
                         break
 
                 job = task[0]
@@ -523,6 +531,10 @@ class Table:
             # TODO using only last event might not work correctly if
             #  there are different non aggregation attrs in each event
             job = jobs[-1]
+            print(
+                f"111 _safe_process_event of event {hex(id(job.extra_data))} with original events: "
+                f"{job.extra_data._original_events}"
+            )
             return await self._internal_persist_key(job.key, job.data, job.aggr_by_key, job.additional_data_persist)
         except BaseException as ex:
             for job in jobs:
