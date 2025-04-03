@@ -593,7 +593,9 @@ class AsyncEmitSource(Flow):
         last_commit_time = time.monotonic()
         if self._explicit_ack and hasattr(self.context, "platform") and hasattr(self.context.platform, "explicit_ack"):
             committer = self.context.platform.explicit_ack
+        event_count = 0
         while True:
+            event_count += 1
             event = None
             if committer:
                 if (
@@ -625,6 +627,7 @@ class AsyncEmitSource(Flow):
                 num_offsets_not_handled += 1
                 events_handled_since_commit += 1
             try:
+                print(f"111 AsyncEmitSource: event_count: {event_count}")
                 termination_result = await self._do_downstream(event)
                 if event is _termination_obj:
                     # We can commit all at this point because termination of

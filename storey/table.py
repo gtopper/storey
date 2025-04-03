@@ -533,7 +533,7 @@ class Table:
             job = jobs[-1]
             print(
                 f"111 _safe_process_event of event {hex(id(job.extra_data))} with original events: "
-                f"{map(lambda x: hex(id(x)), job.extra_data._original_events)}"
+                f"{list(map(lambda x: hex(id(x)), job.extra_data._original_events))}"
             )
             return await self._internal_persist_key(job.key, job.data, job.aggr_by_key, job.additional_data_persist)
         except BaseException as ex:
