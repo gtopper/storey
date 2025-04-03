@@ -1427,6 +1427,7 @@ class NoSqlTarget(_Writer, Flow):
     def _init(self):
         Flow._init(self)
         _Writer._init(self)
+        self.event_count = 0
 
     async def _handle_completed(self, event, response):
         await self._do_downstream(event)
@@ -1435,6 +1436,9 @@ class NoSqlTarget(_Writer, Flow):
         if event is _termination_obj:
             await self._table._terminate()
             return await self._do_downstream(_termination_obj)
+
+        self.event_count += 1
+        print(f"111 NoSqlTarget: event_count: {self.event_count}")
 
         if event.key is None:
             raise ValueError("Event could not be written to table because it has no key")
