@@ -36,6 +36,20 @@ from .table import Table
 from .utils import _split_path, get_in, stringify_key, update_in
 
 
+class Logger:
+    def error(self, msg):
+        print("ERROR: " + msg)
+
+    def warn(self, msg):
+        print("WARN: " + msg)
+
+    def info(self, msg):
+        print("INFO: " + msg)
+
+    def debug(self, msg):
+        print("DEBUG: " + msg)
+
+
 class Flow:
     _legal_first_step = False
 
@@ -60,7 +74,7 @@ class Flow:
         self._termination_result_fn = termination_result_fn
         self.context = context
         self.verbose = True
-        self.logger = getattr(self.context, "logger", None) if self.context else None
+        self.logger = Logger()
 
         self._kwargs = kwargs
         self._full_event = kwargs.get("full_event")
