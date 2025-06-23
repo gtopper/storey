@@ -59,7 +59,7 @@ class Flow:
 
         self._termination_result_fn = termination_result_fn
         self.context = context
-        self.verbose = context and getattr(context, "verbose", False)
+        self.verbose = True
         self.logger = getattr(self.context, "logger", None) if self.context else None
 
         self._kwargs = kwargs
