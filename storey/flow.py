@@ -1853,6 +1853,62 @@ def _static_run(*args, **kwargs):
     return _sval._run(*args, **kwargs)
 
 
+def _streaming_run_wrapper(runnable, input, path, origin_name, queue):
+    """Wrapper that runs a streaming runnable and sends chunks via queue.
+
+    This function runs in a child process and iterates over the generator,
+    sending each chunk through the multiprocessing queue.
+    """
+    try:
+        for chunk in runnable._run(input, path, origin_name):
+            queue.put(("chunk", chunk))
+        queue.put(("done", None))
+    except Exception as e:
+        queue.put(("error", (type(e).__name__, str(e), traceback.format_exc())))
+
+
+def _static_streaming_run(input, path, origin_name, queue):
+    """Streaming wrapper for dedicated_process using the global runnable."""
+    global _sval
+    _streaming_run_wrapper(_sval, input, path, origin_name, queue)
+
+
+def _read_streaming_queue(queue):
+    """Generator that reads chunks from a multiprocessing queue.
+
+    This runs in the parent process and yields chunks sent by the child process.
+    """
+    while True:
+        msg_type, payload = queue.get()
+        if msg_type == "chunk":
+            yield payload
+        elif msg_type == "done":
+            break
+        elif msg_type == "error":
+            exc_type, exc_msg, exc_tb = payload
+            raise RuntimeError(f"{exc_type}: {exc_msg}\n\nOriginal traceback:\n{exc_tb}")
+
+
+async def _async_read_streaming_queue(queue, loop=None):
+    """Async generator that reads chunks from a multiprocessing queue.
+
+    This runs in the parent process and yields chunks sent by the child process,
+    without blocking the asyncio event loop.
+    """
+    if loop is None:
+        loop = asyncio.get_running_loop()
+    while True:
+        # Use run_in_executor to avoid blocking the event loop
+        msg_type, payload = await loop.run_in_executor(None, queue.get)
+        if msg_type == "chunk":
+            yield payload
+        elif msg_type == "done":
+            break
+        elif msg_type == "error":
+            exc_type, exc_msg, exc_tb = payload
+            raise RuntimeError(f"{exc_type}: {exc_msg}\n\nOriginal traceback:\n{exc_tb}")
+
+
 class RunnableExecutor:
     """
     Manages and executes `ParallelExecutionRunnable` instances using various parallel execution mechanisms.
@@ -1880,6 +1936,8 @@ class RunnableExecutor:
         self._process_executor_by_runnable_name = {}
         self._mp_context = multiprocessing.get_context("spawn")
         self._executors = {}
+        self._is_streaming_by_runnable_name: dict[str, bool] = {}
+        self._manager = None  # Lazy-initialized multiprocessing Manager for queue-based streaming
 
     def add_runnable(self, runnable: ParallelExecutionRunnable, execution_mechanism: str) -> None:
         """
@@ -1916,15 +1974,9 @@ class RunnableExecutor:
 
         execution_mechanism = self._execution_mechanism_by_runnable_name[runnable.name]
 
-        # Check for streaming + process-based execution (incompatible combination)
-        if execution_mechanism in ParallelExecutionMechanisms.process():
-            is_streaming = inspect.isgeneratorfunction(runnable.run) or inspect.isasyncgenfunction(runnable.run_async)
-            if is_streaming:
-                raise StreamingError(
-                    f"Streaming is not supported with process-based execution mechanisms. "
-                    f"Runnable '{runnable.name}' uses '{execution_mechanism}'. "
-                    f"Use 'thread_pool', 'asyncio', or 'naive' for streaming runnables."
-                )
+        # Record whether this runnable is a streaming runnable (generator function)
+        is_streaming = inspect.isgeneratorfunction(runnable.run) or inspect.isasyncgenfunction(runnable.run_async)
+        self._is_streaming_by_runnable_name[runnable.name] = is_streaming
 
         if execution_mechanism == ParallelExecutionMechanisms.process_pool:
             self.num_processes += 1
@@ -1959,6 +2011,12 @@ class RunnableExecutor:
             if num_threads:
                 self._executors[ParallelExecutionMechanisms.thread_pool] = ThreadPoolExecutor(max_workers=num_threads)
 
+    def _get_manager(self):
+        """Get or create the multiprocessing Manager for queue-based streaming."""
+        if self._manager is None:
+            self._manager = self._mp_context.Manager()
+        return self._manager
+
     def run_executor(
         self,
         runnable: Union[ParallelExecutionRunnable, str],
@@ -1988,36 +2046,46 @@ class RunnableExecutor:
             raise ValueError(f"select_runnables() returned more than one outlet named '{runnable.name}'")
 
         execution_mechanism = self._execution_mechanism_by_runnable_name[runnable.name]
+        is_streaming = self._is_streaming_by_runnable_name.get(runnable.name, False)
 
         input = (
             event.body if execution_mechanism in ParallelExecutionMechanisms.process() else copy.deepcopy(event.body)
         )
 
+        loop = asyncio.get_running_loop()
+
         if execution_mechanism == ParallelExecutionMechanisms.asyncio:
-            future = asyncio.get_running_loop().create_task(
-                runnable._async_run(input, event.path, origin_runnable_name)
-            )
+            future = loop.create_task(runnable._async_run(input, event.path, origin_runnable_name))
         elif execution_mechanism == ParallelExecutionMechanisms.naive:
-            future = asyncio.get_running_loop().create_future()
+            future = loop.create_future()
             future.set_result(runnable._run(input, event.path, origin_runnable_name))
         elif execution_mechanism == ParallelExecutionMechanisms.dedicated_process:
             executor = self._process_executor_by_runnable_name[runnable.name]
-            future = asyncio.get_running_loop().run_in_executor(
-                executor,
-                _static_run,
-                input,
-                event.path,
-                origin_runnable_name,
-            )
+            if is_streaming:
+                # Use Manager's queue for cross-process streaming (regular queues can't be passed to executor)
+                queue = self._get_manager().Queue()
+                # Start the streaming wrapper in the child process (fire and forget)
+                loop.run_in_executor(executor, _static_streaming_run, input, event.path, origin_runnable_name, queue)
+                # Return a future that resolves immediately to the queue-reading async generator
+                future = loop.create_future()
+                future.set_result(_async_read_streaming_queue(queue, loop))
+            else:
+                future = loop.run_in_executor(executor, _static_run, input, event.path, origin_runnable_name)
+        elif execution_mechanism == ParallelExecutionMechanisms.process_pool:
+            executor = self._executors[execution_mechanism]
+            if is_streaming:
+                # Use Manager's queue for cross-process streaming (regular queues can't be passed to executor)
+                queue = self._get_manager().Queue()
+                # Start the streaming wrapper in the child process (fire and forget)
+                loop.run_in_executor(executor, _streaming_run_wrapper, runnable, input, event.path, origin_runnable_name, queue)
+                # Return a future that resolves immediately to the queue-reading async generator
+                future = loop.create_future()
+                future.set_result(_async_read_streaming_queue(queue, loop))
+            else:
+                future = loop.run_in_executor(executor, runnable._run, input, event.path, origin_runnable_name)
         else:
             executor = self._executors[execution_mechanism]
-            future = asyncio.get_running_loop().run_in_executor(
-                executor,
-                runnable._run,
-                input,
-                event.path,
-                origin_runnable_name,
-            )
+            future = loop.run_in_executor(executor, runnable._run, input, event.path, origin_runnable_name)
         return future
 
 

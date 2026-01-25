@@ -1253,11 +1253,11 @@ class TestParallelExecutionStreaming:
         "mechanism",
         [ParallelExecutionMechanisms.process_pool, ParallelExecutionMechanisms.dedicated_process],
     )
-    def test_parallel_execution_streaming_with_process_based_fails_at_init(self, mechanism):
-        """Test that StreamingError is raised at init time when streaming runnable uses process-based mechanism."""
+    def test_parallel_execution_streaming_with_process_based(self, mechanism):
+        """Test that streaming works with process-based execution mechanisms via queue-based IPC."""
         runnable = StreamingRunnable(name="streamer")
 
-        flow = build_flow(
+        controller = build_flow(
             [
                 SyncEmitSource(),
                 ParallelExecution(
@@ -1266,18 +1266,21 @@ class TestParallelExecutionStreaming:
                 ),
                 Complete(),
             ]
-        )
+        ).run()
 
-        expected_error_message = (
-            "Streaming is not supported with process-based execution mechanisms. "
-            f"Runnable 'streamer' uses '{mechanism}'. "
-            "Use 'thread_pool', 'asyncio', or 'naive' for streaming runnables."
-        )
-        with pytest.raises(StreamingError, match=expected_error_message):
-            flow.run()
+        try:
+            awaitable = controller.emit("test")
+            result = awaitable.await_result()
+            # Result should be a generator (streaming response)
+            assert inspect.isgenerator(result) or inspect.isasyncgen(result)
+            chunks = list(result) if inspect.isgenerator(result) else [chunk for chunk in result]
+            assert chunks == ["test_chunk_0", "test_chunk_1", "test_chunk_2"]
+        finally:
+            controller.terminate()
+            controller.await_termination()
 
-    def test_parallel_execution_streaming_with_shared_executor_process_based_fails_at_init(self):
-        """Test that StreamingError is raised at init when shared_executor uses process-based mechanism."""
+    def test_parallel_execution_streaming_with_shared_executor_process_based(self):
+        """Test that streaming works with shared_executor when the shared executor uses process-based mechanism."""
         # Create a shared executor with a process-based runnable
         shared_executor = RunnableExecutor()
         shared_runnable = StreamingRunnable(name="shared_streamer")
@@ -1292,7 +1295,7 @@ class TestParallelExecutionStreaming:
 
         context = ContextWithExecutor(shared_executor)
 
-        flow = build_flow(
+        controller = build_flow(
             [
                 SyncEmitSource(),
                 ParallelExecution(
@@ -1302,15 +1305,18 @@ class TestParallelExecutionStreaming:
                 ),
                 Complete(),
             ]
-        )
+        ).run()
 
-        expected_error_message = (
-            "Streaming is not supported with process-based execution mechanisms. "
-            "Runnable 'shared_streamer' uses 'process_pool'. "
-            "Use 'thread_pool', 'asyncio', or 'naive' for streaming runnables."
-        )
-        with pytest.raises(StreamingError, match=expected_error_message):
-            flow.run()
+        try:
+            awaitable = controller.emit("test")
+            result = awaitable.await_result()
+            # Result should be a generator (streaming response)
+            assert inspect.isgenerator(result) or inspect.isasyncgen(result)
+            chunks = list(result) if inspect.isgenerator(result) else [chunk for chunk in result]
+            assert chunks == ["test_chunk_0", "test_chunk_1", "test_chunk_2"]
+        finally:
+            controller.terminate()
+            controller.await_termination()
 
 
 class TestStreamingGraphSplits:
