@@ -2059,30 +2059,33 @@ class RunnableExecutor:
         elif execution_mechanism == ParallelExecutionMechanisms.naive:
             future = loop.create_future()
             future.set_result(runnable._run(input, event.path, origin_runnable_name))
-        elif execution_mechanism == ParallelExecutionMechanisms.dedicated_process:
-            executor = self._process_executor_by_runnable_name[runnable.name]
+        elif execution_mechanism in ParallelExecutionMechanisms.process():
+            # Get the appropriate executor for this process mechanism
+            if execution_mechanism == ParallelExecutionMechanisms.dedicated_process:
+                executor = self._process_executor_by_runnable_name[runnable.name]
+            else:  # process_pool
+                executor = self._executors[execution_mechanism]
+
             if is_streaming:
                 # Use Manager's queue for cross-process streaming (regular queues can't be passed to executor)
                 queue = self._get_manager().Queue()
-                # Start the streaming wrapper in the child process (fire and forget)
-                loop.run_in_executor(executor, _static_streaming_run, input, event.path, origin_runnable_name, queue)
-                # Return a future that resolves immediately to the queue-reading async generator
+                # Use appropriate streaming function based on mechanism
+                if execution_mechanism == ParallelExecutionMechanisms.dedicated_process:
+                    loop.run_in_executor(
+                        executor, _static_streaming_run, input, event.path, origin_runnable_name, queue
+                    )
+                else:
+                    loop.run_in_executor(
+                        executor, _streaming_run_wrapper, runnable, input, event.path, origin_runnable_name, queue
+                    )
                 future = loop.create_future()
                 future.set_result(_async_read_streaming_queue(queue, loop))
             else:
-                future = loop.run_in_executor(executor, _static_run, input, event.path, origin_runnable_name)
-        elif execution_mechanism == ParallelExecutionMechanisms.process_pool:
-            executor = self._executors[execution_mechanism]
-            if is_streaming:
-                # Use Manager's queue for cross-process streaming (regular queues can't be passed to executor)
-                queue = self._get_manager().Queue()
-                # Start the streaming wrapper in the child process (fire and forget)
-                loop.run_in_executor(executor, _streaming_run_wrapper, runnable, input, event.path, origin_runnable_name, queue)
-                # Return a future that resolves immediately to the queue-reading async generator
-                future = loop.create_future()
-                future.set_result(_async_read_streaming_queue(queue, loop))
-            else:
-                future = loop.run_in_executor(executor, runnable._run, input, event.path, origin_runnable_name)
+                # Use appropriate run function based on mechanism
+                if execution_mechanism == ParallelExecutionMechanisms.dedicated_process:
+                    future = loop.run_in_executor(executor, _static_run, input, event.path, origin_runnable_name)
+                else:
+                    future = loop.run_in_executor(executor, runnable._run, input, event.path, origin_runnable_name)
         else:
             executor = self._executors[execution_mechanism]
             future = loop.run_in_executor(executor, runnable._run, input, event.path, origin_runnable_name)
