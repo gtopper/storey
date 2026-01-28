@@ -1975,14 +1975,6 @@ class RunnableExecutor:
         is_streaming = inspect.isgeneratorfunction(runnable.run) or inspect.isasyncgenfunction(runnable.run_async)
         self._is_streaming_by_runnable_name[runnable.name] = is_streaming
 
-        # Check for streaming + process-based execution (incompatible combination)
-        if is_streaming and execution_mechanism in ParallelExecutionMechanisms.process():
-            raise StreamingError(
-                f"Streaming is not supported with process-based execution mechanisms. "
-                f"Runnable '{runnable.name}' uses '{execution_mechanism}'. "
-                f"Use 'thread_pool', 'asyncio', or 'naive' for streaming runnables."
-            )
-
         if execution_mechanism == ParallelExecutionMechanisms.process_pool:
             self.num_processes += 1
 
