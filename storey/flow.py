@@ -311,18 +311,16 @@ class Flow:
     def _should_terminate(self):
         return self._termination_received == len(self._inlets)
 
-    def _deepcopy_event_for_outlet(self, event, target_obj, is_stream_completion):
+    def _deepcopy_event_for_outlet(self, event, target_obj, is_stream_completion: bool):
         """Deepcopy event while handling unpicklable attributes on target_obj.
 
-        Args:
-            event: The event to deepcopy.
-            target_obj: The object containing _awaitable_result and _original_events
-                        (either the event itself or event.original_event for StreamCompletion).
-            is_stream_completion: If True, copy target is event_copy.original_event,
-                                  otherwise it's event_copy itself.
+        :param event: The event to deepcopy.
+        :param target_obj: The object containing _awaitable_result and _original_events
+                           (either the event itself or event.original_event for StreamCompletion).
+        :param is_stream_completion: If True, copy target is event_copy.original_event,
+                                     otherwise it's event_copy itself.
 
-        Returns:
-            The deepcopied event with unpicklable attributes restored.
+        :returns: The deepcopied event with unpicklable attributes restored.
         """
         awaitable_result = target_obj._awaitable_result
         target_obj._awaitable_result = None
@@ -562,9 +560,8 @@ class _StreamingStepMixin:
     async def _emit_streaming_chunks(self, event, generator: Union[Generator, AsyncGenerator]) -> None:
         """Emit streaming chunks from a generator, then send StreamCompletion.
 
-        Args:
-            event: The event that will be used to create chunk events.
-            generator: A sync or async generator yielding chunk bodies.
+        :param event: The event that will be used to create chunk events.
+        :param generator: A sync or async generator yielding chunk bodies.
         """
         self._validate_not_already_streaming(event)
 
@@ -1978,6 +1975,14 @@ class RunnableExecutor:
         is_streaming = inspect.isgeneratorfunction(runnable.run) or inspect.isasyncgenfunction(runnable.run_async)
         self._is_streaming_by_runnable_name[runnable.name] = is_streaming
 
+        # Check for streaming + process-based execution (incompatible combination)
+        if is_streaming and execution_mechanism in ParallelExecutionMechanisms.process():
+            raise StreamingError(
+                f"Streaming is not supported with process-based execution mechanisms. "
+                f"Runnable '{runnable.name}' uses '{execution_mechanism}'. "
+                f"Use 'thread_pool', 'asyncio', or 'naive' for streaming runnables."
+            )
+
         if execution_mechanism == ParallelExecutionMechanisms.process_pool:
             self.num_processes += 1
 
@@ -2229,22 +2234,26 @@ class ParallelExecution(Flow, _StreamingStepMixin):
                 return None
 
         # Non-streaming path
-        if len(runnables) == 1:
-            result: _ParallelExecutionRunnableResult = results[0]
-            event.body = result.data if results else None
+        # Check if any results are generators (not allowed with multiple runnables)
+        for result in results:
+            if _is_generator(result):
+                raise StreamingError(
+                    "Streaming is not supported when multiple runnables are selected. "
+                    "Streaming runnables must be the only runnable selected for an event."
+                )
+        # If no runnables were selected, don't emit the event
+        if not results:
+            return None
 
+        # Use self.runnables (registered) not runnables (selected) to determine wrapping
+        if len(self.runnables) == 1:
+            result: _ParallelExecutionRunnableResult = results[0]
+            event.body = result.data
             metadata = {
                 "microsec": result.runtime,
                 "when": result.timestamp.isoformat(sep=" ", timespec="microseconds"),
             }
         else:
-            # Check if any results are generators (not allowed with multiple runnables)
-            for result in results:
-                if _is_generator(result):
-                    raise StreamingError(
-                        "Streaming is not supported when multiple runnables are selected. "
-                        "Streaming runnables must be the only runnable selected for an event."
-                    )
             event.body = {result.runnable_name: result.data for result in results}
             metadata = {
                 result.runnable_name: {

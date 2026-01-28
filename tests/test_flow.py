@@ -5376,6 +5376,79 @@ def test_parallel_execution_with_shared_with_selector():
     }
 
 
+def test_parallel_execution_single_selection_from_multiple_runnables():
+    """When multiple runnables are registered but only one is selected,
+    results should still be wrapped with runnable names (dict format).
+
+    This ensures backward compatibility - the wrapping behavior depends on the number
+    of *registered* runnables, not the number of *selected* runnables.
+    """
+    runnable1 = RunnableNaiveNoOp("model1")
+    runnable2 = RunnableNaiveNoOp("model2")
+
+    runnables = [runnable1, runnable2]
+
+    class SelectiveParallelExecution(ParallelExecution):
+        def select_runnables(self, event):
+            # Select only one runnable based on event body
+            selected = event.body.get("select")
+            return [selected] if selected else None
+
+    parallel_execution = SelectiveParallelExecution(
+        runnables,
+        execution_mechanism_by_runnable_name={
+            "model1": "naive",
+            "model2": "naive",
+        },
+    )
+    reduce = Reduce([], lambda acc, x: acc + [x])
+
+    source = SyncEmitSource()
+    source.to(parallel_execution).to(reduce)
+
+    controller = source.run()
+    # Select only model2 for this event
+    controller.emit({"select": "model2", "value": 42})
+    controller.terminate()
+    termination_result = controller.await_termination()
+
+    # Result should be wrapped with runnable name even though only one was selected
+    # (because multiple runnables are *registered*)
+    # RunnableNaiveNoOp returns 1, so we expect {"model2": 1}
+    result = termination_result[0]
+    assert "model2" in result, f"Expected result wrapped with 'model2' key, got: {result}"
+    assert result == {"model2": 1}
+
+
+def test_parallel_execution_empty_selection():
+    """When 1 runnable is registered but 0 are selected, event should not be emitted."""
+    runnable = RunnableNaiveNoOp("model1")
+
+    class EmptySelectParallelExecution(ParallelExecution):
+        def select_runnables(self, event):
+            # Return empty list - select no runnables
+            return []
+
+    parallel_execution = EmptySelectParallelExecution(
+        [runnable],
+        execution_mechanism_by_runnable_name={"model1": "naive"},
+    )
+
+    controller = build_flow(
+        [
+            SyncEmitSource(),
+            parallel_execution,
+            Reduce([], lambda acc, x: acc + [x]),
+        ]
+    ).run()
+    controller.emit({"value": 42})
+    controller.terminate()
+    termination_result = controller.await_termination()
+
+    # When no runnables are selected, event should not be emitted downstream
+    assert termination_result == []
+
+
 def test_enrichment():
     busy_wait_pool = RunnableBusyWait("busy1")
     busy_wait_dedicated = RunnableBusyWait("busy2")
