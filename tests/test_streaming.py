@@ -1090,29 +1090,6 @@ class TestStreamingWithIntermediateSteps:
 class TestParallelExecutionStreaming:
     """Tests for ParallelExecution streaming support."""
 
-    def test_parallel_execution_single_runnable_streaming(self):
-        """Test streaming with a single runnable."""
-        runnable = StreamingRunnable(name="streamer")
-        controller = build_flow(
-            [
-                SyncEmitSource(),
-                ParallelExecution(
-                    runnables=[runnable],
-                    execution_mechanism_by_runnable_name={"streamer": ParallelExecutionMechanisms.naive},
-                ),
-                Complete(),
-            ]
-        ).run()
-
-        try:
-            awaitable = controller.emit("test")
-            result = awaitable.await_result()
-            assert inspect.isgenerator(result)
-            assert list(result) == ["test_chunk_0", "test_chunk_1", "test_chunk_2"]
-        finally:
-            controller.terminate()
-            controller.await_termination()
-
     def test_parallel_execution_async_runnable_streaming(self):
         """Test streaming with an async runnable."""
         runnable = AsyncStreamingRunnable(name="async_streamer")
@@ -1190,35 +1167,17 @@ class TestParallelExecutionStreaming:
 
         asyncio.run(_test())
 
-    def test_parallel_execution_streaming_with_thread_pool(self):
-        """Test streaming works with thread_pool execution mechanism."""
-        runnable = StreamingRunnable(name="streamer")
-        controller = build_flow(
-            [
-                SyncEmitSource(),
-                ParallelExecution(
-                    runnables=[runnable],
-                    execution_mechanism_by_runnable_name={"streamer": ParallelExecutionMechanisms.thread_pool},
-                ),
-                Complete(),
-            ]
-        ).run()
-
-        try:
-            awaitable = controller.emit("test")
-            result = awaitable.await_result()
-            assert inspect.isgenerator(result)
-            assert list(result) == ["test_chunk_0", "test_chunk_1", "test_chunk_2"]
-        finally:
-            controller.terminate()
-            controller.await_termination()
-
     @pytest.mark.parametrize(
         "execution_mechanism",
-        [ParallelExecutionMechanisms.process_pool, ParallelExecutionMechanisms.dedicated_process],
+        [
+            ParallelExecutionMechanisms.naive,
+            ParallelExecutionMechanisms.thread_pool,
+            ParallelExecutionMechanisms.process_pool,
+            ParallelExecutionMechanisms.dedicated_process,
+        ],
     )
-    def test_parallel_execution_streaming_with_process_based(self, execution_mechanism):
-        """Test that streaming works with process-based execution mechanisms via queue-based IPC."""
+    def test_parallel_execution_streaming_with_executor(self, execution_mechanism):
+        """Test streaming works with various execution mechanisms."""
         runnable = StreamingRunnable(name="streamer")
         controller = build_flow(
             [
