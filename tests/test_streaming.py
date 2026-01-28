@@ -54,6 +54,14 @@ class AsyncStreamingRunnable(ParallelExecutionRunnable):
             yield f"{body}_chunk_{i}"
 
 
+class ErrorStreamingRunnable(ParallelExecutionRunnable):
+    """A streaming runnable that yields one chunk then raises an error."""
+
+    def run(self, body, path: str, origin_name: Optional[str] = None) -> Generator:
+        yield f"{body}_chunk_0"
+        raise ValueError("Simulated streaming error")
+
+
 class TestStreamingPrimitives:
     """Tests for streaming primitive classes."""
 
@@ -1241,6 +1249,47 @@ class TestParallelExecutionStreaming:
         finally:
             controller.terminate()
             controller.await_termination()
+
+    @pytest.mark.parametrize(
+        "execution_mechanism,expected_error",
+        [
+            (ParallelExecutionMechanisms.naive, ValueError),
+            (ParallelExecutionMechanisms.thread_pool, ValueError),
+            # Process-based mechanisms wrap errors in RuntimeError
+            (ParallelExecutionMechanisms.process_pool, RuntimeError),
+            (ParallelExecutionMechanisms.dedicated_process, RuntimeError),
+        ],
+    )
+    def test_parallel_execution_streaming_error_propagation(self, execution_mechanism, expected_error):
+        """Test that errors in streaming are propagated correctly."""
+        runnable = ErrorStreamingRunnable(name="error_streamer")
+        controller = build_flow(
+            [
+                SyncEmitSource(),
+                ParallelExecution(
+                    runnables=[runnable],
+                    execution_mechanism_by_runnable_name={"error_streamer": execution_mechanism},
+                ),
+                Complete(),
+            ]
+        ).run()
+
+        try:
+            awaitable = controller.emit("test")
+            result = awaitable.await_result()
+            assert inspect.isgenerator(result)
+            # Should get first chunk, then error
+            chunks = []
+            with pytest.raises(expected_error, match="Simulated streaming error"):
+                for chunk in result:
+                    chunks.append(chunk)
+            # Verify we got the first chunk before the error
+            assert chunks == ["test_chunk_0"]
+        finally:
+            controller.terminate()
+            # Error is also propagated through termination
+            with pytest.raises(expected_error, match="Simulated streaming error"):
+                controller.await_termination()
 
 
 class TestStreamingGraphSplits:
