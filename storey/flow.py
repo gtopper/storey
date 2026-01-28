@@ -1850,7 +1850,13 @@ def _static_run(*args, **kwargs):
     return _sval._run(*args, **kwargs)
 
 
-def _streaming_run_wrapper(runnable, input, path, origin_name, queue):
+def _streaming_run_wrapper(
+    runnable: ParallelExecutionRunnable,
+    input,
+    path: str,
+    origin_name: Optional[str],
+    queue: multiprocessing.Queue,
+) -> None:
     """Wrapper that runs a streaming runnable and sends chunks via queue.
 
     This function runs in a child process and iterates over the generator,
@@ -1864,13 +1870,13 @@ def _streaming_run_wrapper(runnable, input, path, origin_name, queue):
         queue.put(("error", (type(e).__name__, str(e), traceback.format_exc())))
 
 
-def _static_streaming_run(input, path, origin_name, queue):
+def _static_streaming_run(input, path: str, origin_name: Optional[str], queue: multiprocessing.Queue) -> None:
     """Streaming wrapper for dedicated_process using the global runnable."""
     global _sval
     _streaming_run_wrapper(_sval, input, path, origin_name, queue)
 
 
-def _read_streaming_queue(queue):
+def _read_streaming_queue(queue: multiprocessing.Queue) -> Generator:
     """Generator that reads chunks from a multiprocessing queue.
 
     This runs in the parent process and yields chunks sent by the child process.
@@ -1886,14 +1892,15 @@ def _read_streaming_queue(queue):
             raise RuntimeError(f"{exc_type}: {exc_msg}\n\nOriginal traceback:\n{exc_tb}")
 
 
-async def _async_read_streaming_queue(queue, loop=None):
+async def _async_read_streaming_queue(
+    queue: multiprocessing.Queue, loop: Optional[asyncio.AbstractEventLoop] = None
+) -> AsyncGenerator:
     """Async generator that reads chunks from a multiprocessing queue.
 
     This runs in the parent process and yields chunks sent by the child process,
     without blocking the asyncio event loop.
     """
-    if loop is None:
-        loop = asyncio.get_running_loop()
+    loop = asyncio.get_running_loop()
     while True:
         # Use run_in_executor to avoid blocking the event loop
         msg_type, payload = await loop.run_in_executor(None, queue.get)
@@ -2076,7 +2083,7 @@ class RunnableExecutor:
                         executor, _streaming_run_wrapper, runnable, input, event.path, origin_runnable_name, queue
                     )
                 future = loop.create_future()
-                future.set_result(_async_read_streaming_queue(queue, loop))
+                future.set_result(_async_read_streaming_queue(queue))
             else:
                 # Use appropriate run function based on mechanism
                 if execution_mechanism == ParallelExecutionMechanisms.dedicated_process:
