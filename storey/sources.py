@@ -16,6 +16,7 @@ import asyncio
 import copy
 import gc
 import queue
+import sys
 import threading
 import time
 import traceback
@@ -637,6 +638,12 @@ class AsyncFlowController(FlowControllerBase):
 
 async def _commit_handled_events(outstanding_offsets_by_qualified_shard, committer, logger, commit_all=False):
     num_offsets_not_handled = 0
+    if logger:
+        total = sum(len(v) for v in outstanding_offsets_by_qualified_shard.values())
+        logger.info(
+            f"[DIAG] _commit_handled_events called. commit_all={commit_all}, "
+            f"shards={len(outstanding_offsets_by_qualified_shard)}, total_offsets={total}"
+        )
     if not commit_all:
         gc.collect()
     for qualified_shard, offsets in outstanding_offsets_by_qualified_shard.items():
@@ -649,11 +656,26 @@ async def _commit_handled_events(outstanding_offsets_by_qualified_shard, committ
             # go over offsets in the qualified shard by arrival order until we reach an unhandled offset
             for i, offset in enumerate(offsets):
                 if not offset.is_ready_to_commit():
+                    event_obj = offset.event_weakref()
+                    if logger:
+                        referrers = gc.get_referrers(event_obj) if event_obj else []
+                        referrer_types = [(type(r).__name__, id(r)) for r in referrers]
+                        logger.info(
+                            f"[DIAG] Offset {offset.offset} NOT ready. "
+                            f"event alive={event_obj is not None}, "
+                            f"refcount={sys.getrefcount(event_obj) if event_obj else 0}, "
+                            f"referrers={referrer_types}"
+                        )
                     num_offsets_not_handled += len(offsets) - i
                     break
+                else:
+                    if logger:
+                        logger.info(f"[DIAG] Offset {offset.offset} ready to commit.")
                 last_handled_offset = offset.offset
                 num_to_clear += 1
         if last_handled_offset is not None:
+            if logger:
+                logger.info(f"[DIAG] Committing offset {last_handled_offset} for shard {qualified_shard}")
             path, shard_id = qualified_shard
             try:
                 await committer(QualifiedOffset(path, shard_id, last_handled_offset))
@@ -733,6 +755,11 @@ class AsyncEmitSource(Flow):
         last_commit_time = time.monotonic()
         if self._explicit_ack and hasattr(self.context, "platform") and hasattr(self.context.platform, "explicit_ack"):
             committer = self.context.platform.explicit_ack
+        if self.logger:
+            self.logger.info(
+                f"[DIAG] _run_loop starting. committer={'set' if committer else 'None'}, "
+                f"explicit_ack={self._explicit_ack}"
+            )
         while True:
             event = None
             if committer:
@@ -760,6 +787,13 @@ class AsyncEmitSource(Flow):
                     last_commit_time = time.monotonic()
             if not event:
                 event = await self._q.get()
+            if committer and self.logger:
+                has_attrs = hasattr(event, "path") and hasattr(event, "shard_id") and hasattr(event, "offset")
+                self.logger.info(
+                    f"[DIAG] Event received. has_offset_attrs={has_attrs}, "
+                    f"type={type(event).__name__}, "
+                    f"attrs={[a for a in ('path','shard_id','offset','stream_path') if hasattr(event, a)]}"
+                )
             if committer and hasattr(event, "path") and hasattr(event, "shard_id") and hasattr(event, "offset"):
                 # ML-6065 – workaround for NUC-178
                 stream_path = event.stream_path if hasattr(event, "stream_path") else event.path
@@ -790,6 +824,11 @@ class AsyncEmitSource(Flow):
                     await self._q.get()
                 self._raise_on_error()
             finally:
+                if self.logger:
+                    self.logger.info(
+                        f"[DIAG] finally block: event_is_termination={event is _termination_obj}, "
+                        f"has_ex={self._ex is not None}"
+                    )
                 if event is _termination_obj or self._ex:
                     # Commit on termination/error only, not every event (ML-11979).
                     await _commit_handled_events(self._outstanding_offsets, committer, self.logger, commit_all=True)
